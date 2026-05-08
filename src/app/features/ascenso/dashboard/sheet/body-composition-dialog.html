@@ -1,0 +1,73 @@
+<div class="system-notification-container">
+    <div class="system-header">
+        <div class="header-line"></div>
+        <span class="header-text">[ DATA INPUT: BODY COMPOSITION ]</span>
+        <div class="header-line"></div>
+    </div>
+
+    <mat-dialog-content>
+        <div class="system-date">FECHA: {{ today | date:'dd/MM/yyyy' }}</div>
+        
+        <div class="input-grid">
+            <div class="input-item">
+                <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>PESO (KG)</mat-label>
+                    <input matInput type="number" [formField]="bodyForm().fields.weight">
+                    <mat-icon matSuffix>monitor_weight</mat-icon>
+                </mat-form-field>
+            </div>
+
+            <div class="input-item">
+                <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>BMI</mat-label>
+                    <input matInput type="number" [formField]="bodyForm().fields.bmi">
+                    <mat-icon matSuffix>calculate</mat-icon>
+                </mat-form-field>
+            </div>
+
+            <div class="input-item">
+                <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>% MASA MUSCULAR</mat-label>
+                    <input matInput type="number" [formField]="bodyForm().fields.muscleMass">
+                    <mat-icon matSuffix>fitness_center</mat-icon>
+                </mat-form-field>
+            </div>
+
+            <div class="input-item">
+                <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>% MASA GRASA</mat-label>
+                    <input matInput type="number" [formField]="bodyForm().fields.fatMass">
+                    <mat-icon matSuffix>percent</mat-icon>
+                </mat-form-field>
+            </div>
+
+            <div class="input-item">
+                <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>EDAD CORPORAL</mat-label>
+                    <input matInput type="number" [formField]="bodyForm().fields.bodyAge">
+                    <mat-icon matSuffix>cake</mat-icon>
+                </mat-form-field>
+            </div>
+
+            <div class="input-item">
+                <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>GRASA VISCERAL</mat-label>
+                    <input matInput type="number" [formField]="bodyForm().fields.visceralFat">
+                    <mat-icon matSuffix>warning</mat-icon>
+                </mat-form-field>
+            </div>
+        </div>
+    </mat-dialog-content>
+
+    <div class="system-footer">
+        <button class="confirm-btn" (click)="onSaveData()" [disabled]="updateStatus()?.status === 'loading'">
+            <span class="btn-bracket">[</span>
+            @if (updateStatus()?.status === 'loading') {
+                SINCRONIZANDO...
+            } @else {
+                SUBIR DATOS
+            }
+            <span class="btn-bracket">]</span>
+        </button>
+    </div>
+</div>

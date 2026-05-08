@@ -1,0 +1,109 @@
+<gc-header useWhen="main" />
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-content">
+    <h1>ASCENSO</h1>
+    <h2>
+      Optimiza tu cuerpo<br>
+      Domina tu mente
+    </h2>
+    <p>
+      Nutrición basada en ciencia.  
+      Entrenamiento inteligente.  
+      Disciplina real.
+    </p>
+
+    <button mat-flat-button color="primary" class="cta">Comenzar el Ascenso</button>
+  </div>
+</section>
+<!-- Manifiesto -->
+<section class="manifesto reveal" #revealItem>
+  <div class="manifesto-container">
+    <h2>El Manifiesto de Ascenso</h2>
+    <p>El mundo moderno produce cuerpos débiles y mentes dispersas.</p>
+    <p>
+      Demasiada información.
+      Demasiada distracción.
+      Muy poca disciplina.
+    </p>
+    <p>
+      <strong>Ascenso es una respuesta a eso.</strong>
+    </p>
+    <p>
+      Un sistema para construir fuerza,
+      claridad mental
+      y dominio personal.
+    </p>
+  </div>
+</section>
+<!-- Acrónimo y significado --->
+<section class="ascenso-acronym reveal" #revealItem>
+  <div class="acronym-container">
+    @for(letter of letters; track letter.char; let i = $index) {
+      <div class="acronym-row">
+        <div class="letter" [style.animationDelay]="i * 0.15 + 's'">
+          {{ letter.char }}
+        </div>
+        <div class="meaning" [style.animationDelay]="(i * 0.15 + .4) + 's'">
+          {{ letter.meaning }}<br>
+          <span class="description">{{ letter.description }}</span>
+        </div>
+      </div>
+    }
+    <div class="energy-line"></div>
+  </div>
+</section>
+<!-- 7 Principios -->
+<section class="principles-section reveal" #revealItem>
+  <h2 class="principles-title">Los 7 principios de ASCENSO</h2>
+  <div class="principles-wrapper">
+    <div class="principle-indicator">
+      <span class="indicator-level">LEVEL</span>
+      <span class="indicator-number">{{ activePrinciple() }}</span>
+      <div class="progress-bar">
+        <div class="progress-line"></div>
+      </div>
+    </div>
+
+    <div class="principles-container">
+      @for(principle of principles; track principle.id; let i = $index) {
+      <div class="principle" #principleCard [attr.data-principle]="principle.roman">
+        <div class="principle-level">LEVEL {{ principle.roman }}</div>
+        <h3 class="principle-heading">{{ principle.title }}</h3>
+        <p class="principle-text">{{ principle.text1 }}</p>
+        <p class="principle-text">{{ principle.text2 }}</p>
+      </div>
+      }
+    </div>
+  </div>
+</section>
+<!-- Sistema ASCENSO -->
+<section class="system-section reveal" #revealItem>
+  <h2 class="system-title">El Sistema ASCENSO</h2>
+  <p class="system-subtitle">7 niveles de evolución personal</p>
+  <div class="system-wrapper">
+    <div class="pyramid">
+      @for(level of levels; track level.level) {
+      <div class="pyramid-level" 
+           #pyramidLevel 
+           [attr.data-level]="level.level" 
+           (click)="setActiveLevel(level)"
+           [class.active]="activeLevel().level === level.level">
+      </div>
+      }
+      <div class="pyramid-glow"></div>
+    </div>  
+    <div class="level-info">  
+      <h3 class="level-title">Nivel {{activeLevel().level}} — {{activeLevel().name}}</h3> 
+      <p class="level-desc">{{activeLevel().description}}</p>  
+      <div class="level-includes">  
+        @for(item of activeLevel().includes; track $index) {
+        <span class="include-item">{{item}}</span>
+        }
+      </div>  
+      <p class="level-objective">
+        Objetivo: {{activeLevel().objective}}
+      </p>
+    </div>
+  </div>
+</section>

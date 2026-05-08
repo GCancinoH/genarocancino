@@ -1,0 +1,40 @@
+<div class="profile-container">
+    <div class="profile-header">
+        <button mat-icon-button (click)="goBack()" class="back-btn">
+            <mat-icon>arrow_back</mat-icon>
+        </button>
+        <h2 class="page-title">Mi Perfil</h2>
+        <span style="flex: 1 1 auto"></span>
+        <button mat-icon-button (click)="updateProfile()">
+            <mat-icon style="color: white;">save</mat-icon>
+        </button>
+    </div>
+
+    <div class="profile-content">
+        <div class="profile-section">
+            <div class="avatar-container">
+                @if (player()!.photoURL) {
+                <img [src]="player()!.photoURL" class="profile-img" alt="Profile">
+                } @else {
+                <div class="profile-initials">{{ initials() }}</div>
+                }
+                <button mat-mini-fab color="primary" class="edit-photo-btn">
+                    <mat-icon>camera_alt</mat-icon>
+                </button>
+            </div>
+
+            <div class="profile-details-form">
+                <mat-form-field appearance="outline" class="full-width custom-form-field">
+                    <mat-label>Nombre</mat-label>
+                    <input matInput [(ngModel)]="editableDisplayName" placeholder="Ej. John Doe">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width custom-form-field">
+                    <mat-label>Correo Electrónico</mat-label>
+                    <input matInput [ngModel]="player()!.email" readonly disabled>
+                    <mat-icon matSuffix>email</mat-icon>
+                </mat-form-field>
+            </div>
+        </div>
+    </div>
+</div>

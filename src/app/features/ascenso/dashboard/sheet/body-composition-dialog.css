@@ -1,0 +1,153 @@
+.system-notification-container {
+    background: rgba(5, 5, 5, 0.98);
+    border: 2px solid rgba(37, 117, 252, 0.3);
+    padding: 24px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(37, 117, 252, 0.2);
+    min-width: 450px;
+}
+
+.system-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.header-line {
+    flex-grow: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #2575fc, transparent);
+}
+
+.header-text {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #2575fc;
+    text-shadow: 0 0 10px rgba(37, 117, 252, 0.5);
+}
+
+.system-date {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: right;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+}
+
+.input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+/* Material Form Field Customization */
+::ng-deep .mat-mdc-form-field {
+    width: 100%;
+}
+
+::ng-deep .mdc-text-field--outlined {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+::ng-deep .mdc-notched-outline__leading,
+::ng-deep .mdc-notched-outline__notch,
+::ng-deep .mdc-notched-outline__trailing {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+::ng-deep .mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+::ng-deep .mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+::ng-deep .mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+    border-color: #2575fc !important;
+    border-width: 2px !important;
+}
+
+::ng-deep .mat-mdc-form-field.mat-focused .mat-mdc-floating-label {
+    color: #2575fc !important;
+}
+
+::ng-deep .mat-mdc-text-field-wrapper .mat-mdc-form-field-input-control {
+    color: white !important;
+    font-weight: 600;
+}
+
+::ng-deep .mat-mdc-form-field-icon-suffix mat-icon {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+::ng-deep .mat-mdc-form-field.mat-focused .mat-mdc-form-field-icon-suffix mat-icon {
+    color: #2575fc;
+    filter: drop-shadow(0 0 5px rgba(37, 117, 252, 0.5));
+}
+
+.system-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.confirm-btn {
+    background: transparent;
+    border: none;
+    color: #2575fc;
+    font-weight: 800;
+    letter-spacing: 2px;
+    cursor: pointer;
+    padding: 12px 24px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confirm-btn:disabled {
+    color: rgba(255, 255, 255, 0.2);
+    cursor: not-allowed;
+}
+
+.confirm-btn:not(:disabled):hover {
+    color: white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.btn-bracket {
+    font-size: 1.2rem;
+    transition: transform 0.2s ease;
+}
+
+.confirm-btn:not(:disabled):hover .btn-bracket:first-child {
+    transform: translateX(-5px);
+}
+
+.confirm-btn:not(:disabled):hover .btn-bracket:last-child {
+    transform: translateX(5px);
+}
+
+/* Responsiveness */
+@media (max-width: 500px) {
+    .system-notification-container {
+        min-width: 95vw;
+        padding: 16px;
+    }
+    
+    .input-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Material Dialog Overrides */
+::ng-deep .mat-mdc-dialog-container {
+    padding: 0 !important;
+}
+
+::ng-deep .mdc-dialog__surface {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}

@@ -1,0 +1,95 @@
+:host {
+    display: block;
+}
+
+::ng-deep .mat-mdc-menu-content {
+    width: 280px !important;
+}
+
+.header {
+    position: fixed;
+    top: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 100;
+}
+
+/* Dashboard */
+.header-dashboard {
+    display: flex;
+    justify-content: center;
+    width: 100vw;
+    background-color: rgba(5, 5, 5, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.header-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 28px;
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+}
+
+.dashboard-notification-menu {
+    width: 200px !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-content {
+    padding: 12px;
+}
+
+.notification-content h2 {
+    font-size: 1rem;
+    font-weight: 400;
+    color: black;
+    letter-spacing: 2px;
+}
+
+/* Navbar */
+.nav {
+    display: flex;
+    gap: 24px;
+
+}
+
+.nav a {
+    text-decoration: none;
+    color: white;
+    opacity: .8;
+    transition: .25s;
+}
+
+.nav a:hover {
+    opacity: 1;
+}
+
+.dashboard-nav {
+    display: flex;
+    gap: 8px;
+}
+
+.dashboard-nav button {
+    color: white;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+}
+
+.logo button {
+    margin-left: -12px;
+    /* Offset the icon button padding */
+}

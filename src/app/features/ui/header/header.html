@@ -1,0 +1,40 @@
+@if(useWhen() === 'main' || useWhen() === 'ascenso') {
+<header class="header">
+  <div class="header-container">
+    <div class="logo">
+      genaro cancino
+    </div>
+
+    <nav class="nav">
+      <a matButton routerLink="sign-in">Entrar</a>
+      <a matButton class="guide">Guía gratuita</a>
+    </nav>
+  </div>
+
+</header>
+}
+
+@if(useWhen() === 'dashboard') {
+<header class="header-dashboard">
+  <div class="header-container">
+    <div class="logo">
+      <button matIconButton (click)="useDrawer()">
+        <mat-icon style="color: white">menu</mat-icon>
+      </button>
+      ascenso
+    </div>
+
+    <nav class="dashboard-nav">
+      <button matIconButton [matMenuTriggerFor]="notifications">
+        <mat-icon matBadge="9+" style="color: white" aria-hidden="false"
+          aria-label="Notificaciones">notifications</mat-icon>
+      </button>
+      <mat-menu #notifications="matMenu" yPosition="below" xPosition="before" class="dashboard-notification-menu">
+        <div class="notification-content">
+          <h2>Notificaciones</h2>
+        </div>
+      </mat-menu>
+    </nav>
+  </div>
+</header>
+}

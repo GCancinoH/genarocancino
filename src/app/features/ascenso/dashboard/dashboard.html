@@ -1,0 +1,105 @@
+<mat-drawer-container class="dashboard-container" autosize>
+    <mat-drawer #drawer class="dashboard-sidenav" mode="over" [opened]="showDrawer()" (closed)="showDrawer.set(false)">
+        <div class="drawer-content">
+            <div class="profile-section">
+                @if (player()?.photoURL) {
+                <img [src]="player()?.photoURL" class="profile-img" alt="Profile">
+                } @else {
+                <div class="profile-initials">{{ initials() }}</div>
+                }
+                <div class="profile-details">
+                    <span class="display-name">{{ player()?.displayName || 'Usuario' }}</span>
+                    <span class="email">{{ player()?.email }}</span>
+                </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="rewards-section">
+                <div class="reward-item">
+                    <mat-icon>trending_up</mat-icon>
+                    <div class="reward-info">
+                        <span class="label">Nivel</span>
+                        <span class="value">{{ playerRewards()?.level }}</span>
+                    </div>
+                </div>
+                <div class="reward-item">
+                    <mat-icon>bolt</mat-icon>
+                    <div class="reward-info">
+                        <span class="label">XP</span>
+                        <span class="value">{{ playerRewards()?.xp }}</span>
+                    </div>
+                </div>
+                <div class="reward-item">
+                    <mat-icon>monetization_on</mat-icon>
+                    <div class="reward-info">
+                        <span class="label">Coins</span>
+                        <span class="value">{{ playerRewards()?.coins }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="drawer-actions">
+                <button mat-button cdkFocusInitial class="action-btn"
+                    [routerLink]="['/ascenso/profile', player()?.uid]">
+                    <mat-icon>person</mat-icon> Mi Perfil
+                </button>
+                <button mat-button class="action-btn">
+                    <mat-icon>settings</mat-icon> Configuración
+                </button>
+                <mat-spacer></mat-spacer>
+                <button mat-button color="warn" (click)="showDrawer.set(false)">
+                    <mat-icon>close</mat-icon> Cerrar
+                </button>
+            </div>
+        </div>
+    </mat-drawer>
+
+    <mat-drawer-content class="dashboard-content">
+        <gc-header useWhen="dashboard" [(showDrawer)]="showDrawer" />
+
+        <!-- Contenido principal -->
+        <div style="padding-top: 20px; padding-left: 28px; padding-right: 28px;">
+            <h2 style="color: white;">Bienvenido(a), {{name()}}.</h2>
+            <mat-spacer height="36" />
+            <div class="dashboard-cards">
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Peso</mat-card-title>
+                    </mat-card-header>
+                </mat-card>
+
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Peso</mat-card-title>
+                    </mat-card-header>
+                </mat-card>
+
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Peso</mat-card-title>
+                    </mat-card-header>
+                </mat-card>
+
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Peso</mat-card-title>
+                    </mat-card-header>
+                </mat-card>
+
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Peso</mat-card-title>
+                    </mat-card-header>
+                </mat-card>
+            </div>
+
+        </div>
+        <!-- FAB Button -->
+        <button matFab color="primary" class="fab-button" aria-label="FAB Button" (click)="openDashboardSheet()">
+            <mat-icon>add</mat-icon>
+        </button> <!-- ./FAB Button-->
+    </mat-drawer-content>
+</mat-drawer-container>

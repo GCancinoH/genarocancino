@@ -1,0 +1,177 @@
+.system-notification-container {
+    background: rgba(5, 5, 5, 0.95);
+    border: 2px solid rgba(37, 117, 252, 0.3);
+    padding: 24px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(37, 117, 252, 0.15);
+    min-width: 320px;
+}
+
+.system-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.header-line {
+    flex-grow: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #2575fc, transparent);
+}
+
+.header-text {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #2575fc;
+    text-shadow: 0 0 10px rgba(37, 117, 252, 0.5);
+}
+
+.reward-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 32px;
+    letter-spacing: 1px;
+    color: white;
+}
+
+.reward-grid {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 32px;
+}
+
+.reward-card {
+    position: relative;
+    width: 130px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, rgba(37, 117, 252, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.reward-card:hover {
+    background: rgba(37, 117, 252, 0.05);
+    border-color: #2575fc;
+    transform: translateY(-5px);
+}
+
+.reward-card:hover .card-glow {
+    opacity: 1;
+}
+
+.reward-card mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: #2575fc;
+    filter: drop-shadow(0 0 8px rgba(37, 117, 252, 0.5));
+}
+
+.xp-card mat-icon {
+    color: #6a11cb;
+    filter: drop-shadow(0 0 8px rgba(106, 17, 203, 0.5));
+}
+
+.reward-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.reward-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 1px;
+}
+
+.system-message {
+    text-align: center;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 16px;
+    font-style: italic;
+}
+
+.system-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.confirm-btn {
+    background: transparent;
+    border: none;
+    color: #2575fc;
+    font-weight: 800;
+    letter-spacing: 2px;
+    cursor: pointer;
+    padding: 12px 24px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confirm-btn:hover {
+    color: white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.btn-bracket {
+    font-size: 1.2rem;
+    transition: transform 0.2s ease;
+}
+
+.confirm-btn:hover .btn-bracket:first-child {
+    transform: translateX(-5px);
+}
+
+.confirm-btn:hover .btn-bracket:last-child {
+    transform: translateX(5px);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Material Dialog Overrides */
+::ng-deep .mat-mdc-dialog-container {
+    padding: 0 !important;
+}
+
+::ng-deep .mdc-dialog__surface {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}

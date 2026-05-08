@@ -1,0 +1,41 @@
+<div class="system-notification-container">
+    <div class="system-header">
+        <div class="header-line"></div>
+        <span class="header-text">[ SYSTEM NOTIFICATION ]</span>
+        <div class="header-line"></div>
+    </div>
+
+    <mat-dialog-content>
+        <div class="reward-title">RECOMPENSAS OBTENIDAS</div>
+
+        <div class="reward-grid">
+            <div class="reward-card xp-card">
+                <div class="card-glow"></div>
+                <mat-icon>bolt</mat-icon>
+                <mat-spacer height="5" />
+                <div class="reward-value">+{{ data.xp }}</div>
+                <div class="reward-label">EXPERIENCIA</div>
+            </div>
+
+            <div class="reward-card coins-card">
+                <div class="card-glow"></div>
+                <mat-icon>monetization_on</mat-icon>
+                <mat-spacer height="5" />
+                <div class="reward-value">+{{ data.coins }}</div>
+                <div class="reward-label">MONEDAS</div>
+            </div>
+        </div>
+
+        @if (data.message) {
+        <div class="system-message">{{ data.message }}</div>
+        }
+    </mat-dialog-content>
+
+    <div class="system-footer">
+        <button class="confirm-btn" (click)="close()">
+            <span class="btn-bracket">[</span>
+            CONFIRMAR
+            <span class="btn-bracket">]</span>
+        </button>
+    </div>
+</div>

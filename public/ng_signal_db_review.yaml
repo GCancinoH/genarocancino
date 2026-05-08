@@ -1,0 +1,402 @@
+# ============================================================
+# NgSignalDB — Architectural Review & Suggestions
+# Reviewer: Antigravity (AI Assistant)
+# Review Date: 2026-05-06
+# Plan Version Reviewed: "Signal-Native IndexedDB Library (Angular 2026)"
+# Purpose: LLM-friendly reference for refining the implementation plan.
+# ============================================================
+
+metadata:
+  verdict: "Concept is solid and DX vision is genuinely good. Critical gaps exist in failure paths, architectural ambiguity, and missing API surface. Address these before writing production code."
+  priority_order: "critical > important > missing_feature > enhancement"
+
+# ============================================================
+# SECTION 1 — CRITICAL ISSUES
+# Must be resolved before implementation begins.
+# ============================================================
+
+critical_issues:
+
+  - id: CRIT-01
+    title: "Web Worker ↔ rxResource is an impedance mismatch"
+    affected_phases: ["Phase 1 (Web Worker)", "Phase 3 (rxResource Bridge)"]
+    problem: |
+      The plan simultaneously states:
+        (a) All IDB logic lives inside a Web Worker (Phase 1).
+        (b) The API layer uses rxResource() to bridge Worker output to Signals (Phase 3).
+      rxResource() expects an Observable factory. Bridging postMessage responses
+      to an Observable requires a Subject or Observable adapter — which introduces
+      hidden RxJS surface area. This directly contradicts the YAML's own stated goal:
+      "No RxJS overhead."
+    root_cause: "Architectural conflict between the off-thread engine choice and the rxResource() primitive."
+    suggestion: |
+      Be explicit and pick one of two paths:
+        OPTION A (Truly RxJS-free):
+          Use resource() (Promise-based, Angular 18+) with a Promise-wrapped
+          postMessage channel. Clean, no RxJS, no adapters.
+        OPTION B (Accept RxJS internally):
+          Use rxResource() but acknowledge it as an internal implementation detail.
+          Expose only Signal-based public APIs so consumers never touch RxJS directly.
+      Recommended: OPTION A for purity. OPTION B if DevTools/Worker-Spy require streams.
+    llm_prompt_hint: |
+      When implementing the Worker bridge, generate a Promise-based channel:
+      function workerRequest<T>(worker: Worker, msg: WorkerMessage): Promise<T> {
+        return new Promise((resolve, reject) => {
+          const id = crypto.randomUUID();
+          const handler = (e: MessageEvent) => {
+            if (e.data.id !== id) return;
+            worker.removeEventListener('message', handler);
+            e.data.error ? reject(e.data.error) : resolve(e.data.result);
+          };
+          worker.addEventListener('message', handler);
+          worker.postMessage({ ...msg, id });
+        });
+      }
+
+  - id: CRIT-02
+    title: "Optimistic UI has no rollback path on Worker failure"
+    affected_phases: ["Phase 2 (Transaction-Safe Cache)"]
+    problem: |
+      The write lifecycle in the YAML is:
+        Step 2: Update in-flight signal for instant UI feedback.
+        Step 3: Execute IDB readwrite transaction (in Worker).
+        Step 4: On success, increment dbVersion.
+      There is no Step 5 for failure. If the Worker-side transaction fails
+      (e.g., quota exceeded, constraint violation), the UI shows stale optimistic
+      data indefinitely because dbVersion never increments and no rollback fires.
+      This is the exact race condition the plan claims to solve.
+    root_cause: "Missing failure branch in the write lifecycle state machine."
+    suggestion: |
+      Add an explicit ROLLBACK contract to the Worker message interface:
+        - On IDB transaction error: Worker emits { type: 'WRITE_FAILED', storeKey, reason }.
+        - Main thread: Clears the in-flight cache entry for that storeKey.
+        - Main thread: Forces a re-fetch by bumping a dedicated errorVersion signal.
+        - Expose an onError callback in the provideNgSignalDB config for consumer error handling.
+      Also define the conflict resolution strategy explicitly:
+        conflict_strategy: "last-write-wins" | "version-vector" | "custom"
+    llm_prompt_hint: |
+      The write lifecycle must be a 5-step state machine, not 4:
+        PENDING → IN_FLIGHT → SUCCESS (increment version) | FAILED (rollback + re-fetch).
+      Model this as a discriminated union type:
+        type WriteState = { status: 'pending' } | { status: 'in_flight'; optimisticData: unknown }
+          | { status: 'success' } | { status: 'failed'; reason: string };
+
+  - id: CRIT-03
+    title: "Proxy-based API is not SSR-safe with a simple no-op provider"
+    affected_phases: ["Phase 4 (SSR Awareness)"]
+    problem: |
+      The plan's SSR strategy is a "no-op provider." However, if any template or
+      component accesses db.users (a Proxy property) during Angular SSR rendering,
+      the access still reaches the Proxy trap before the no-op guard can intercept it.
+      On the server, Worker, IndexedDB, and BroadcastChannel are all undefined,
+      so the Proxy trap will throw ReferenceErrors.
+    root_cause: "No-op providers guard injection, not property access on an already-injected Proxy."
+    suggestion: |
+      The SSR no-op provider must return a full Proxy that:
+        - Intercepts every property access (get trap).
+        - Returns an empty, inert Signal (signal([])) or Resource for any store name.
+        - Returns no-op functions for all write operations (add, update, delete).
+        - Never throws — it must be fully transparent.
+      This is the "Null Object Pattern" applied to the entire db interface.
+    llm_prompt_hint: |
+      Implement a createSsrNoopDb() factory:
+        const ssrDb = new Proxy({}, {
+          get: (_target, storeName) => new Proxy({}, {
+            get: (_s, method) => {
+              if (method === 'all' || method === 'asSignal') return () => signal([]);
+              if (method === 'add' || method === 'update' || method === 'delete') return () => Promise.resolve();
+              return () => signal(null);
+            }
+          })
+        });
+
+# ============================================================
+# SECTION 2 — IMPORTANT GAPS
+# Plan is incomplete without these. Add before Phase 5.
+# ============================================================
+
+important_gaps:
+
+  - id: GAP-01
+    title: "Schema Migrations have no API surface"
+    affected_phases: ["Phase 1 (IDB Engine)", "Phase 5 (Migration Tests)"]
+    problem: |
+      Phase 5 mentions "Migration Tests" but there is no migration API defined anywhere
+      in the plan. IndexedDB's onupgradeneeded callback is the ONLY place you can
+      create/delete object stores and indexes — and it's version-gated. Without a
+      first-class migrations config, the library cannot safely evolve user schemas.
+    suggestion: |
+      Add a migrations array to the provideNgSignalDB config:
+        migrations: [
+          {
+            version: 1,
+            up: (db: IDBDatabase) => {
+              db.createObjectStore('users', { keyPath: 'id' });
+            }
+          },
+          {
+            version: 2,
+            up: (db: IDBDatabase) => {
+              const store = transaction.objectStore('users');
+              store.createIndex('email_idx', 'email', { unique: true });
+            }
+          }
+        ]
+      The engine runs migrations sequentially inside onupgradeneeded.
+    llm_prompt_hint: |
+      Migration runner pseudocode (Worker-side):
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          const currentVersion = event.oldVersion;
+          const pending = config.migrations.filter(m => m.version > currentVersion);
+          for (const migration of pending) {
+            migration.up(db, event.target.transaction);
+          }
+        };
+
+  - id: GAP-02
+    title: "Index definitions are missing from the config contract"
+    affected_phases: ["Phase 1 (IDB Engine)", "Phase 3 (Query Builder)"]
+    problem: |
+      The plan borrows "Index-First Querying" from Dexie, and the API has
+      .where(key).equals(val) — but there is no config for declaring which
+      fields are indexed. Without explicit index definitions at DB open time
+      (createObjectStore + createIndex inside onupgradeneeded), every
+      .where() call will fall back to a full-table cursor scan, which is
+      O(n) and defeats the entire performance proposition.
+    suggestion: |
+      Add a stores config to provideNgSignalDB:
+        stores: {
+          users: {
+            keyPath: 'id',
+            autoIncrement: false,
+            indexes: [
+              { name: 'email_idx', keyPath: 'email', unique: true },
+              { name: 'role_idx', keyPath: 'role', unique: false }
+            ]
+          }
+        }
+      The query builder must validate at runtime that a requested .where(key)
+      field has a corresponding index, and warn or throw if it doesn't.
+    llm_prompt_hint: |
+      The query builder should check the index registry:
+        where(key: string) {
+          if (!this.storeConfig.indexes.find(i => i.keyPath === key)) {
+            console.warn(`[NgSignalDB] No index found for "${key}". Query will use a full cursor scan.`);
+          }
+          return new QueryBuilder(this.storeName, key);
+        }
+
+  - id: GAP-03
+    title: "No error state contract on Signals/Resources"
+    affected_phases: ["Phase 2 (Reactivity Layer)", "Phase 3 (API Layer)"]
+    problem: |
+      What does db.users.all() return when:
+        - IDB is blocked (another tab has an older DB version open)?
+        - Storage quota is exceeded?
+        - The browser is in private/incognito mode (IDB may be restricted)?
+        - The Worker crashes mid-transaction?
+      The plan has no defined error state. If the resource enters an error state
+      and the Signal holds undefined silently, consumer components will render
+      empty UIs with no indication of failure — a terrible UX and a debugging nightmare.
+    suggestion: |
+      Define an explicit NgSignalDBResourceState<T> type:
+        type NgSignalDBResourceState<T> =
+          | { status: 'loading' }
+          | { status: 'success'; data: T }
+          | { status: 'error'; error: NgSignalDBError; retryable: boolean };
+      Expose this as the Signal value type. Provide a helper:
+        isDbError(state): state is ErrorState
+      Also: expose a global db.status signal for the connection health:
+        type DbStatus = 'initializing' | 'ready' | 'blocked' | 'error' | 'closed';
+    llm_prompt_hint: |
+      All public-facing query methods should return:
+        Signal<NgSignalDBResourceState<T>>
+      Never return Signal<T | undefined> — that conflates "loading" with "empty result."
+
+  - id: GAP-04
+    title: "Worker lifecycle is not tied to Angular's DI lifecycle"
+    affected_phases: ["Phase 1 (Warm-up)", "Phase 4 (Angular Integration)"]
+    problem: |
+      The plan boots the Worker via APP_INITIALIZER (good) but never addresses
+      Worker termination. Workers are OS-level threads — if the Angular app is
+      destroyed (e.g., during testing, route change in a micro-frontend, or
+      hot-reload) and the Worker is not explicitly terminated, you get:
+        - Memory leaks.
+        - Zombie Workers continuing to process stale messages.
+        - Test pollution across suites.
+    suggestion: |
+      Inject DestroyRef in the NgSignalDB service and terminate the Worker on destroy:
+        constructor(private destroyRef: DestroyRef) {
+          destroyRef.onDestroy(() => {
+            this.broadcastChannel.close();
+            this.worker.terminate();
+          });
+        }
+      Also: emit a DRAIN message before terminating so in-flight writes can flush.
+    llm_prompt_hint: |
+      Worker shutdown sequence:
+        1. Stop accepting new writes (set status to 'closing').
+        2. postMessage({ type: 'DRAIN' }) and await acknowledgement.
+        3. broadcastChannel.close().
+        4. worker.terminate().
+
+  - id: GAP-05
+    title: "No testing utility — IDB is broken in JSDOM (Jest/Vitest)"
+    affected_phases: ["Phase 5 (Verification)"]
+    problem: |
+      Angular unit tests run in JSDOM, which either has no IndexedDB implementation
+      or a broken one. This means any component or service that injects NgSignalDB
+      will fail in tests unless the library ships a testing utility.
+      Without this, adoption will be near-zero because no team will accept a
+      library that breaks their entire test suite.
+    suggestion: |
+      Ship a provideNgSignalDBTesting() utility that:
+        - Uses fake-indexeddb (npm package) as the IDB backend.
+        - Runs everything on the main thread (no Worker) for synchronous testability.
+        - Exposes a db.flush() method to await all pending writes in tests.
+        - Is tree-shaken from production builds (import from 'ng-signal-db/testing').
+    llm_prompt_hint: |
+      Testing provider pattern:
+        // In test:
+        TestBed.configureTestingModule({
+          providers: [provideNgSignalDBTesting()]
+        });
+        // Exposes:
+        const testDb = inject(NgSignalDBTestHarness);
+        await testDb.flush(); // await all pending writes
+        expect(testDb.snapshot('users')).toEqual([...]);
+
+# ============================================================
+# SECTION 3 — ENHANCEMENTS
+# High-value additions that would differentiate the library.
+# ============================================================
+
+enhancements:
+
+  - id: ENH-01
+    title: "Encryption must be a lazy-loaded optional plugin, not a core hook"
+    affected_phases: ["Phase 1 (Encryption Hook)"]
+    problem: |
+      The plan's 10KB bundle target is incompatible with bundled encryption.
+      AES-GCM via Web Crypto API + IV management + key derivation (PBKDF2) +
+      encrypted field schema adds ~3-5KB minimum. If encryption is always bundled,
+      the 10KB target is already broken before any feature code is written.
+    suggestion: |
+      Move encryption to a plugin:
+        provideNgSignalDB({
+          plugins: [withEncryption({ key: derivedKey, algorithm: 'AES-GCM' })]
+        })
+      The plugin hooks into the write/read lifecycle via an interceptor interface.
+      This keeps the core bundle lean and makes encryption tree-shakeable.
+    llm_prompt_hint: |
+      Plugin interceptor interface:
+        interface NgSignalDBPlugin {
+          onBeforeWrite?(data: unknown): Promise<unknown>;
+          onAfterRead?(data: unknown): Promise<unknown>;
+          onInit?(db: IDBDatabase): Promise<void>;
+        }
+
+  - id: ENH-02
+    title: "Suggested Phase Reorder: Main-thread first, Worker as optimization"
+    affected_phases: ["All Phases"]
+    problem: |
+      The current plan front-loads maximum complexity (Worker + IDB + Encryption all
+      in Phase 1). This makes early debugging extremely difficult because Worker
+      errors are opaque, and you cannot validate the API surface or reactivity
+      contract until all three systems work together simultaneously.
+    suggestion: |
+      Reorder phases to validate the contract first, then optimize:
+        Phase 1: Core IDB Engine (main thread, Promise-based, no Worker)
+        Phase 2: Signal + Resource reactivity layer + optimistic UI + rollback
+        Phase 3: Proxy API layer + query builder + type inference
+        Phase 4: Web Worker migration (move Phase 1 engine off-thread)
+        Phase 5: Encryption plugin + BroadcastChannel multi-tab sync
+        Phase 6: Angular integration (SSR, provideNgSignalDB, DevTools, testing util)
+      Rationale: The Worker is a performance optimization, not a functional requirement.
+      Treat it as one. Ship a working main-thread version first.
+    llm_prompt_hint: |
+      Use a strategy pattern to swap the engine:
+        interface IdbEngine {
+          get(store: string, key: IDBValidKey): Promise<unknown>;
+          getAll(store: string): Promise<unknown[]>;
+          put(store: string, value: unknown): Promise<IDBValidKey>;
+          delete(store: string, key: IDBValidKey): Promise<void>;
+        }
+        // Phase 1: MainThreadEngine implements IdbEngine
+        // Phase 4: WorkerEngine implements IdbEngine (drop-in replacement)
+
+  - id: ENH-03
+    title: "Define a formal Worker Message Protocol (discriminated union)"
+    affected_phases: ["Phase 1 (Web Worker & Handshake)"]
+    problem: |
+      The plan mentions a "Message interface and INIT handshake" but does not define
+      what that message protocol looks like. Without a strict typed protocol,
+      the Worker bridge becomes a stringly-typed postMessage soup that is impossible
+      to maintain or extend safely.
+    suggestion: |
+      Define the full message protocol as TypeScript discriminated unions upfront:
+        // Main → Worker
+        type WorkerInbound =
+          | { type: 'INIT'; config: DBConfig }
+          | { type: 'GET'; id: string; store: string; key: IDBValidKey }
+          | { type: 'GET_ALL'; id: string; store: string; query?: IDBKeyRange }
+          | { type: 'PUT'; id: string; store: string; value: unknown }
+          | { type: 'DELETE'; id: string; store: string; key: IDBValidKey }
+          | { type: 'DRAIN' };
+
+        // Worker → Main
+        type WorkerOutbound =
+          | { type: 'READY' }
+          | { type: 'RESULT'; id: string; result: unknown }
+          | { type: 'ERROR'; id: string; error: string; retryable: boolean }
+          | { type: 'VERSION_BUMP'; store: string; newVersion: number }
+          | { type: 'DRAINED' };
+    llm_prompt_hint: |
+      Generate the Worker handler as an exhaustive switch on WorkerInbound['type'].
+      Use TypeScript's never type to ensure all cases are handled at compile time.
+
+# ============================================================
+# SECTION 4 — WHAT IS ALREADY STRONG
+# Keep these as-is. Do not second-guess them.
+# ============================================================
+
+strengths:
+
+  - "Philosophy: Signals as source of truth, IDB as persistence engine — correct mental model."
+  - "Proxy-based API (db.users.where(...).asSignal()) is genuinely zero-boilerplate and competitive with Dexie DX."
+  - "Write-Queue in Phase 1 is essential for preventing IDB transaction collisions — good placement."
+  - "Granular per-store version registry is smarter than a single global dbVersion. RxDB learned this the hard way."
+  - "BroadcastChannel for multi-tab sync is the correct, standards-based approach."
+  - "provideNgSignalDB() as a functional provider aligns with Angular 2026 best practices."
+  - "Zero-dependency goal is achievable for the core if encryption is extracted to a plugin."
+  - "Full compatibility with Angular Zoneless mode is the right target for 2026."
+
+# ============================================================
+# SECTION 5 — SUMMARY CHECKLIST FOR LLM CODE GENERATION
+# Use this as a pre-flight checklist before generating any code.
+# ============================================================
+
+llm_code_generation_checklist:
+  before_phase_1:
+    - "[ ] Decide: resource() (Promise) or rxResource() (Observable) — document the choice."
+    - "[ ] Define WorkerInbound and WorkerOutbound discriminated union types."
+    - "[ ] Define the IdbEngine interface (strategy pattern) for main-thread/Worker swap."
+    - "[ ] Define NgSignalDBConfig with: dbName, version, stores (keyPath + indexes), migrations[], plugins[]."
+
+  before_phase_2:
+    - "[ ] Define WriteState as a 5-step discriminated union (pending → in_flight → success | failed)."
+    - "[ ] Define NgSignalDBResourceState<T> (loading | success | error)."
+    - "[ ] Define DbStatus global signal (initializing | ready | blocked | error | closed)."
+
+  before_phase_3:
+    - "[ ] Ensure .where(key) validates against declared indexes and warns on missing ones."
+    - "[ ] Ensure all public methods return Signal<NgSignalDBResourceState<T>>, never Signal<T | undefined>."
+
+  before_phase_4:
+    - "[ ] Implement createSsrNoopDb() as a full Null Object Proxy."
+    - "[ ] Wire DestroyRef to broadcast channel close + worker.terminate() + DRAIN flush."
+
+  before_phase_5:
+    - "[ ] Ship provideNgSignalDBTesting() importing from 'ng-signal-db/testing' (tree-shakeable)."
+    - "[ ] Validate 10KB bundle target with source-map-explorer after encryption is extracted."

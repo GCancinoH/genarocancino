@@ -1,0 +1,199 @@
+:host {
+  display: block;
+  background: #121212;
+  color: white;
+  font-family: "Inter", sans-serif;
+  min-height: 100vh;
+}
+
+.sign-in-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(106, 17, 203, 0.15), transparent 60%),
+    radial-gradient(circle at center, #1a1a1a, #0e0e0e);
+}
+
+.sign-in-card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: #0f0f0f;
+  color: white;
+  border-radius: 16px;
+  padding: 40px 20px;
+  /* Card Shadow for depth */
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(106, 17, 203, 0.2);
+  border-color: linear-gradient(135deg, #6a11cb, #2575fc);
+  overflow: visible;
+  /* to allow gradient border to show */
+  z-index: 1;
+}
+
+/* Gradient Border Effect */
+.card-gradient-border {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  border-radius: 18px;
+  z-index: -1;
+  opacity: 0.8;
+}
+
+mat-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+mat-card-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ascenso-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 32px;
+  letter-spacing: 8px;
+  margin: 0 0 8px 0;
+  color: #6a11cb;
+  text-shadow: 0 0 10px rgba(106, 17, 203, 0.4);
+}
+
+h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.sign-in-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Material Field Overrides for Dark Theme */
+::ng-deep .mat-mdc-text-field-wrapper {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled).mdc-text-field--focused .mdc-notched-outline__leading,
+::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled).mdc-text-field--focused .mdc-notched-outline__notch,
+::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled).mdc-text-field--focused .mdc-notched-outline__trailing {
+  border-color: #6a11cb !important;
+}
+
+::ng-deep .mat-mdc-form-field-focus-overlay {
+  background-color: transparent !important;
+}
+
+::ng-deep .mat-mdc-input-element {
+  color: white !important;
+  font-family: "Inter", sans-serif !important;
+}
+
+::ng-deep .mat-mdc-form-field-icon-prefix {
+  color: rgba(255, 255, 255, 0.5) !important;
+  margin-right: 8px;
+}
+
+::ng-deep .mdc-floating-label {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.error-message {
+  color: #ff5252;
+  font-size: 14px;
+  text-align: center;
+  background: rgba(255, 82, 82, 0.1);
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 82, 82, 0.3);
+}
+
+/* Button & Animation */
+.actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 16px;
+  min-height: 48px;
+  /* space for the button */
+}
+
+.submit-button {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px !important;
+  background: linear-gradient(90deg, #6a11cb, #2575fc) !important;
+  color: white !important;
+  font-family: "Inter", sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(106, 17, 203, 0.4) !important;
+}
+
+.submit-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(106, 17, 203, 0.6) !important;
+}
+
+.submit-button:disabled {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: none !important;
+}
+
+/* Shrink Animation State */
+.submit-button.loading {
+  width: 48px !important;
+  min-width: 48px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 2px solid rgba(106, 17, 203, 0.5) !important;
+  pointer-events: none;
+}
+
+.button-text {
+  transition: opacity 0.2s ease;
+  opacity: 1;
+}
+
+.button-text.hidden {
+  opacity: 0;
+  position: absolute;
+}
+
+.spinner {
+  position: absolute;
+}
+
+::ng-deep .mat-mdc-progress-spinner .mdc-circular-progress__determinate-circle,
+::ng-deep .mat-mdc-progress-spinner .mdc-circular-progress__indeterminate-circle-graphic {
+  stroke: #6a11cb !important;
+}

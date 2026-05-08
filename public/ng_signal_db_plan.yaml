@@ -1,0 +1,60 @@
+# Library Specification: Signal-Native IndexedDB Layer (Angular 2026)
+# Target Architecture: Minimalist, Proxy-based, Signal-Resource driven
+# Optimization: No RxJS overhead, No class-based boilerplate
+
+metadata:
+  name: NgSignalDB
+  concept: "A reactive IndexedDB wrapper that treats local storage as an Angular Resource."
+  philosophy: "Signals are the source of truth; IndexedDB is the persistence engine."
+
+core_layers:
+  1_engine_layer:
+    technology: "Native IndexedDB (Promise-based wrapper)"
+    responsibilities:
+      - "Manage database open/upgrade cycles using IDBOpenDBRequest."
+      - "Execute atomic transactions (readonly/readwrite)."
+      - "Implement a 'Write-Queue' to prevent transaction collisions."
+
+  2_reactivity_layer:
+    technology: "Angular Signals + BroadcastChannel"
+    components:
+      - global_version_signal: "A source signal dbVersion = signal(0) used as a dependency for all resources."
+      - change_bus: "Internal BroadcastChannel to sync dbVersion across browser tabs."
+      - optimistic_updates: "A temporary memory cache to reflect writes in the UI before IDB confirms disk-write."
+
+  3_api_layer:
+    technology: "JavaScript Proxies"
+    features:
+      - store_access: "Access stores via db.users using a Proxy to avoid pre-defining every property."
+      - query_builder: "Fluent syntax: .where(key).equals(val).asSignal()."
+      - resource_wrapper: "Uses Angular's resource() or rxResource() to bridge IDB Promises to Signals."
+
+architectural_patterns_to_borrow:
+  from_rxdb:
+    - "Event-Reduced Change Detection: Only trigger a refresh if the specific store changed."
+    - "Multi-Tab Synchronization: Mandatory use of BroadcastChannel for reactivity consistency."
+  from_dexie:
+    - "Elegant Transaction Scoping: Auto-close transactions when the promise resolves."
+    - "Index-First Querying: Avoid full-table scans by mapping queries to IDB indexes."
+
+implementation_blueprint:
+  service_injection:
+    pattern: "Functional Provider"
+    example: "provideSignalDB(config: DBConfig)"
+  
+  query_lifecycle:
+    step_1: "User accesses db.collection.all()."
+    step_2: "Library returns a computed signal wrapping a resource."
+    step_3: "The resource registers dbVersion as a dependency."
+    step_4: "On any write, dbVersion increments, triggering an async re-fetch of only the active queries."
+
+  write_lifecycle:
+    step_1: "User calls db.collection.add(item)."
+    step_2: "Library updates internal 'In-Flight' signal for instant UI feedback."
+    step_3: "Library executes IDB 'readwrite' transaction."
+    step_4: "On success, increment dbVersion and broadcast to other tabs."
+
+performance_targets:
+  - "Zero-dependency (excluding Angular core)."
+  - "Under 10KB bundle size."
+  - "Full compatibility with Angular Zoneless mode."
