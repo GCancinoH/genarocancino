@@ -20,21 +20,21 @@
                     <mat-icon>trending_up</mat-icon>
                     <div class="reward-info">
                         <span class="label">Nivel</span>
-                        <span class="value">{{ playerRewards()?.level }}</span>
+                        <span class="value">{{ playerRewardsState().data?.level }}</span>
                     </div>
                 </div>
                 <div class="reward-item">
                     <mat-icon>bolt</mat-icon>
                     <div class="reward-info">
                         <span class="label">XP</span>
-                        <span class="value">{{ playerRewards()?.xp }}</span>
+                        <span class="value">{{ playerRewardsState().data?.xp }}</span>
                     </div>
                 </div>
                 <div class="reward-item">
                     <mat-icon>monetization_on</mat-icon>
                     <div class="reward-info">
                         <span class="label">Coins</span>
-                        <span class="value">{{ playerRewards()?.coins }}</span>
+                        <span class="value">{{ playerRewardsState().data?.coins }}</span>
                     </div>
                 </div>
             </div>

@@ -32,8 +32,7 @@ export class Dashboard {
   // signals
   showDrawer = signal(false);
   //player = this.playerRepository.getPlayer();
-  playerRewardsSignal = this.playerRepository.getPlayerRewardsSignal();
-  playerRewards = this.playerRepository.getPlayerRewards();
+  readonly playerRewardsState = this.playerRepository.playerRewards;
   // computed
   readonly player = computed(() => this.playerRepository.getPlayer());
   readonly name = computed(() => {

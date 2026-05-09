@@ -5,8 +5,8 @@
         </button>
         <h2 class="page-title">Mi Perfil</h2>
         <span style="flex: 1 1 auto"></span>
-        <button mat-icon-button (click)="updateProfile()">
-            <mat-icon style="color: white;">save</mat-icon>
+        <button mat-icon-button (click)="updateProfile()" [disabled]="updateStatus()?.status === 'loading'">
+            <mat-icon style="color: white;">{{ updateStatus()?.status === 'loading' ? 'hourglass_top' : 'save' }}</mat-icon>
         </button>
     </div>
 
