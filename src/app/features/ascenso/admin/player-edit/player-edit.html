@@ -1,0 +1,289 @@
+<div class="edit-wrapper">
+  <gc-header useWhen="dashboard" />
+
+  <div class="edit-content-container">
+    <!-- Header -->
+    <div class="system-header">
+      <div class="header-line"></div>
+      <span class="header-text">[ EDITOR DE JUGADOR: {{ playerData()?.displayName || 'SIN NOMBRE' }} ]</span>
+      <div class="header-line"></div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+      <button class="action-btn text-gray" (click)="goBack()">
+        <span class="btn-bracket">[</span>
+        <mat-icon class="icon-inline">arrow_back</mat-icon>
+        VOLVER AL PANEL
+        <span class="btn-bracket">]</span>
+      </button>
+
+      <span class="btn-spacer"></span>
+
+      <button class="action-btn text-green" (click)="saveAll()" [disabled]="saving()">
+        <span class="btn-bracket">[</span>
+        <mat-icon class="icon-inline">{{ saving() ? 'hourglass_top' : 'save' }}</mat-icon>
+        {{ saving() ? 'GUARDANDO...' : 'GUARDAR CAMBIOS' }}
+        <span class="btn-bracket">]</span>
+      </button>
+    </div>
+
+    <!-- Save status -->
+    @if (saveStatus(); as status) {
+    <div class="save-bar">
+      <span class="save-status" [class.saving]="status === 'saving'" [class.success]="status === 'success'"
+        [class.error]="status === 'error'">
+        @if (status === 'saving') { GUARDANDO EN EL SISTEMA... }
+        @else if (status === 'success') { CAMBIOS GUARDADOS EXITOSAMENTE. }
+        @else if (status === 'error') { ERROR: {{ saveMessage() }} }
+      </span>
+    </div>
+    }
+
+    @if (loading()) {
+    <div class="loading-terminal">
+      <div class="terminal-loader">
+        <span class="cursor">></span> CARGANDO DATOS DEL JUGADOR...
+      </div>
+    </div>
+    } @else {
+    <!-- Tabs -->
+    <mat-tab-group [selectedIndex]="selectedTab()" (selectedIndexChange)="selectedTab.set($event)">
+      <!-- TAB 1: General Info -->
+      <mat-tab label="INFORMACIÓN GENERAL">
+        <div class="tab-content">
+          <mat-card class="section-card">
+            <mat-card-content>
+              <div class="section-title">DATOS DEL JUGADOR</div>
+
+              <div class="input-grid general-grid">
+                <div class="input-item input-item-wide">
+                  <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>NOMBRE COMPLETO</mat-label>
+                    <input matInput [formField]="playerForm.displayName" placeholder="Nombre del jugador">
+                    <mat-icon matSuffix>person</mat-icon>
+                  </mat-form-field>
+                </div>
+
+                <div class="input-item">
+                  <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>CORREO ELECTRÓNICO</mat-label>
+                    <input matInput [formField]="playerForm.email" placeholder="correo@ejemplo.com">
+                    <mat-icon matSuffix>email</mat-icon>
+                  </mat-form-field>
+                </div>
+
+                <div class="input-item">
+                  <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>EDAD</mat-label>
+                    <input matInput type="number" [formField]="playerForm.age" placeholder="Edad">
+                    <mat-icon matSuffix>tag</mat-icon>
+                  </mat-form-field>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card class="section-card">
+            <mat-card-content>
+              <div class="section-title">ESTADO DE CUENTA</div>
+
+              <div class="toggle-row">
+                <span class="toggle-label">CUENTA ACTIVA</span>
+                <mat-slide-toggle [checked]="editActive()" (change)="toggleActive()">
+                </mat-slide-toggle>
+              </div>
+
+              <div class="toggle-row">
+                <span class="toggle-label">CUENTA PREMIUM</span>
+                <mat-slide-toggle [(ngModel)]="editPremium">
+                </mat-slide-toggle>
+              </div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card class="section-card">
+            <mat-card-content>
+              <div class="section-title">INFORMACIÖN DEL SISTEMA</div>
+              <div class="input-grid system-grid">
+                <div class="input-item">
+                  <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>UID</mat-label>
+                    <input matInput [value]="uid()" readonly disabled>
+                    <mat-icon matSuffix>fingerprint</mat-icon>
+                  </mat-form-field>
+                </div>
+                <div class="input-item">
+                  <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>ROL</mat-label>
+                    <input matInput value="PLAYER" readonly disabled>
+                    <mat-icon matSuffix>badge</mat-icon>
+                  </mat-form-field>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- TAB 2: Meal Plan -->
+      <mat-tab label="PLAN ALIMENTACIÓN">
+        <div class="tab-content">
+          <mat-card class="section-card">
+            <mat-card-content>
+              <div class="section-title">PLAN DE ALIMENTACIÓN</div>
+
+              @for (day of mealDays(); track day.dia; let di = $index) {
+              <mat-card class="day-card">
+                <div class="day-header">
+                  <span class="day-title">DÍA {{ day.dia }}</span>
+                  <button class="action-btn text-red" (click)="removeMealDay(di)">
+                    <mat-icon class="icon-inline">delete</mat-icon>
+                    ELIMINAR DÍA
+                  </button>
+                </div>
+                <div class="day-body">
+                  @for (meal of day.comidas; track $index; let mi = $index) {
+                  <div class="item-card">
+                    <div class="item-header">
+                      <span class="item-title">{{ meal.nombre || 'COMIDA #' + (mi + 1) }}</span>
+                      <button class="delete-item-btn" (click)="removeMeal(di, mi)">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                    <mat-flex direction="column" gap="12px">
+                      <mat-form-field appearance="outline" fullWidth>
+                        <mat-label>NOMBRE</mat-label>
+                        <input matInput [(ngModel)]="meal.nombre" placeholder="Ej. Desayuno">
+                        <mat-icon matSuffix>restaurant</mat-icon>
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" fullWidth class="rich-text-field">
+                        <mat-label>DESCRIPCIÓN</mat-label>
+                        <textarea matInput class="rich-textarea" [(ngModel)]="meal.descripcion"
+                          placeholder="Detalles de la comida... Usa [list], [sub-list], [b] e [i] para formato."
+                          rows="6"></textarea>
+                        <mat-icon matSuffix>description</mat-icon>
+                        <mat-hint>Formato: [b]negrita[/b], [i]cursiva[/i], [list]elemento 1&#10;elemento 2[/list],
+                          [sub-list]sub elemento[/sub-list]</mat-hint>
+                      </mat-form-field>
+
+                      @if (meal.descripcion) {
+                      <div class="markup-preview" fullWidth>
+                        <div class="markup-preview-title">VISTA PREVIA</div>
+                        <div class="markup-preview-content" [innerHTML]="decodeMarkup(meal.descripcion)"></div>
+                      </div>
+                      }
+
+                      <mat-flex gap="10" wrap="wrap">
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>PROTEÍNAS (g)</mat-label>
+                          <input matInput type="number" [(ngModel)]="meal.proteinas" placeholder="0">
+                          <mat-icon matSuffix>fitness_center</mat-icon>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>CARBOHIDRATOS (g)</mat-label>
+                          <input matInput type="number" [(ngModel)]="meal.carbohidratos" placeholder="0">
+                          <mat-icon matSuffix>bolt</mat-icon>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>GRASAS (g)</mat-label>
+                          <input matInput type="number" [(ngModel)]="meal.grasas" placeholder="0">
+                          <mat-icon matSuffix>water_drop</mat-icon>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>CALORÍAS</mat-label>
+                          <input matInput type="number" [(ngModel)]="meal.calorias" placeholder="0">
+                          <mat-icon matSuffix>local_fire_department</mat-icon>
+                        </mat-form-field>
+                      </mat-flex>
+                    </mat-flex>
+                  </div>
+                  }
+                  <button class="add-btn" (click)="addMeal(di)">
+                    <mat-icon>add</mat-icon> AÑADIR COMIDA
+                  </button>
+                </div>
+              </mat-card>
+              }
+              <button class="add-btn" (click)="addMealDay()">
+                <mat-icon>add</mat-icon> AÑADIR DÍA DE ALIMENTACIÓN
+              </button>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- TAB 3: Workout Plan -->
+      <mat-tab label="PLAN ENTRENAMIENTO">
+        <div class="tab-content">
+          <mat-card class="section-card">
+            <mat-card-content>
+              <div class="section-title">PLAN DE ENTRENAMIENTO</div>
+
+              @for (day of workoutDays(); track day.dia; let di = $index) {
+              <mat-card class="day-card">
+                <div class="day-header">
+                  <span class="day-title">DÍA {{ day.dia }}</span>
+                  <button class="action-btn text-red" (click)="removeWorkoutDay(di)">
+                    <mat-icon class="icon-inline">delete</mat-icon>
+                    ELIMINAR DÍA
+                  </button>
+                </div>
+                <div class="day-body">
+                  @for (exercise of day.ejercicios; track $index; let ei = $index) {
+                  <div class="item-card">
+                    <div class="item-header">
+                      <span class="item-title">{{ exercise.nombre || 'EJERCICIO #' + (ei + 1) }}</span>
+                      <button class="delete-item-btn" (click)="removeExercise(di, ei)">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                    <mat-flex direction="column" gap="12px">
+                      <mat-form-field appearance="outline" fullWidth>
+                        <mat-label>NOMBRE DEL EJERCICIO</mat-label>
+                        <input matInput [(ngModel)]="exercise.nombre" placeholder="Ej. Press de banca">
+                        <mat-icon matSuffix>fitness_center</mat-icon>
+                      </mat-form-field>
+
+                      <mat-flex gap="10" wrap="wrap">
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>SERIES</mat-label>
+                          <input matInput type="number" [(ngModel)]="exercise.series" placeholder="4">
+                          <mat-icon matSuffix>repeat</mat-icon>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>REPETICIONES</mat-label>
+                          <input matInput [(ngModel)]="exercise.repeticiones" placeholder="Ej. 8-12">
+                          <mat-icon matSuffix>replay</mat-icon>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>DESCANSO</mat-label>
+                          <input matInput [(ngModel)]="exercise.descanso" placeholder="Ej. 60s">
+                          <mat-icon matSuffix>timer</mat-icon>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" fullWidth>
+                          <mat-label>NOTAS</mat-label>
+                          <input matInput [(ngModel)]="exercise.notas" placeholder="Observaciones...">
+                          <mat-icon matSuffix>notes</mat-icon>
+                        </mat-form-field>
+                      </mat-flex>
+                    </mat-flex>
+                  </div>
+                  }
+                  <button class="add-btn" (click)="addExercise(di)">
+                    <mat-icon>add</mat-icon> AÑADIR EJERCICIO
+                  </button>
+                </div>
+              </mat-card>
+              }
+              <button class="add-btn" (click)="addWorkoutDay()">
+                <mat-icon>add</mat-icon> AÑADIR DÍA DE ENTRENAMIENTO
+              </button>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+    }
+  </div>
+</div>

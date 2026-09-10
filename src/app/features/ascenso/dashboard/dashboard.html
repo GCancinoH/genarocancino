@@ -46,6 +46,11 @@
                     [routerLink]="['/ascenso/profile', player()?.uid]">
                     <mat-icon>person</mat-icon> Mi Perfil
                 </button>
+                @if (customClaims()?.admin) {
+                <button mat-button class="action-btn" [routerLink]="['/ascenso/admin']" (click)="showDrawer.set(false)">
+                    <mat-icon>admin_panel_settings</mat-icon> Panel de Administración
+                </button>
+                }
                 <button mat-button class="action-btn">
                     <mat-icon>settings</mat-icon> Configuración
                 </button>

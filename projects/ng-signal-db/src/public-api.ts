@@ -6,3 +6,4 @@ export * from './lib/engine-factory';
 export * from './lib/plugins/encryption';
 export * from './lib/testing/testing-provider';
 export * from './lib/tokens';
+export * from './lib/core/main-thread-engine';

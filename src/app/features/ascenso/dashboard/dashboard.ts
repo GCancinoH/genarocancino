@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, DestroyRef } from '@angular/core';
+import { Component, inject, signal, computed, DestroyRef, effect } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 // Material
@@ -31,6 +31,7 @@ export class Dashboard {
   private readonly bottomSheet = inject(MatBottomSheet);
   // signals
   showDrawer = signal(false);
+  customClaims = signal<any>(null);
   //player = this.playerRepository.getPlayer();
   readonly playerRewardsState = this.playerRepository.playerRewards;
   // computed
@@ -50,6 +51,20 @@ export class Dashboard {
       .join('')
       .toUpperCase();
   });
+
+  constructor() {
+    effect(() => {
+      const user = this.player();
+      if (user) {
+        this.playerRepository.getPlayerCustomClaims().then(claims => {
+          this.customClaims.set(claims);
+          console.log('User custom claims:', claims);
+        });
+      } else {
+        this.customClaims.set(null);
+      }
+    });
+  }
 
   openDashboardSheet() {
     this.bottomSheet.open(Dashboardsheet);

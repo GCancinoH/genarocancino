@@ -1,0 +1,537 @@
+.edit-wrapper {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.edit-wrapper,
+.edit-wrapper *,
+.edit-wrapper *::before,
+.edit-wrapper *::after {
+  box-sizing: border-box;
+}
+
+.edit-content-container {
+  padding: 30px 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* System Header */
+.system-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.header-line {
+  flex-grow: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #2575fc, transparent);
+}
+
+.header-text {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #2575fc;
+  text-shadow: 0 0 10px rgba(37, 117, 252, 0.5);
+}
+
+/* Action Bar */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  font-weight: 800;
+  letter-spacing: 2px;
+  cursor: pointer;
+  padding: 10px 16px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.icon-inline {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.text-blue { color: #2575fc; }
+.text-gray { color: rgba(255, 255, 255, 0.5); }
+.text-green { color: #00ff66; }
+.text-red { color: #ff3366; }
+
+.action-btn:hover {
+  color: white !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+.btn-bracket {
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.action-btn:hover .btn-bracket:first-child { transform: translateX(-4px); }
+.action-btn:hover .btn-bracket:last-child { transform: translateX(4px); }
+
+.btn-spacer { flex: 1 1 auto; }
+
+/* Tabs */
+::ng-deep .mat-mdc-tab-header {
+  border-bottom: 1px solid rgba(37, 117, 252, 0.2) !important;
+  margin-bottom: 20px;
+}
+
+::ng-deep .mat-mdc-tab .mdc-tab__text-label {
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-weight: 700 !important;
+  letter-spacing: 2px !important;
+}
+
+::ng-deep .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+  color: #2575fc !important;
+  text-shadow: 0 0 8px rgba(37, 117, 252, 0.3);
+}
+
+::ng-deep .mat-mdc-tab .mdc-tab-indicator__content--underline {
+  border-color: #2575fc !important;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 16px 0;
+}
+
+/* Section Card */
+.section-card {
+  background: rgba(5, 5, 5, 0.98) !important;
+  border: 1px solid rgba(37, 117, 252, 0.15) !important;
+  border-radius: 0 !important;
+  margin-bottom: 20px;
+  box-shadow: 0 0 15px rgba(37, 117, 252, 0.05);
+  overflow: hidden;
+}
+
+.section-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #2575fc;
+  text-shadow: 0 0 5px rgba(37, 117, 252, 0.3);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(37, 117, 252, 0.1);
+}
+
+/* Forms */
+::ng-deep .mat-mdc-form-field {
+  width: 100%;
+}
+
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.input-item,
+.input-item .mat-mdc-form-field {
+  min-width: 0;
+}
+
+.input-item-wide {
+  grid-column: 1 / -1;
+}
+
+::ng-deep .mdc-text-field--outlined {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-radius: 4px !important;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+::ng-deep .mdc-text-field--outlined:hover {
+  background: rgba(37, 117, 252, 0.04) !important;
+  box-shadow: inset 0 0 0 1px rgba(37, 117, 252, 0.08);
+}
+
+::ng-deep .mdc-notched-outline__leading,
+::ng-deep .mdc-notched-outline__notch,
+::ng-deep .mdc-notched-outline__trailing {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  transition: border-color 0.2s ease;
+}
+
+/* Hover glow — default */
+::ng-deep .mdc-text-field--outlined:hover .mdc-notched-outline__leading,
+::ng-deep .mdc-text-field--outlined:hover .mdc-notched-outline__notch,
+::ng-deep .mdc-text-field--outlined:hover .mdc-notched-outline__trailing {
+  border-color: rgba(37, 117, 252, 0.5) !important;
+}
+
+/* Hover glow — disabled (no hover effect) */
+::ng-deep .mdc-text-field--outlined.mdc-text-field--disabled:hover .mdc-notched-outline__leading,
+::ng-deep .mdc-text-field--outlined.mdc-text-field--disabled:hover .mdc-notched-outline__notch,
+::ng-deep .mdc-text-field--outlined.mdc-text-field--disabled:hover .mdc-notched-outline__trailing {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Focus glow */
+::ng-deep .mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+::ng-deep .mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+::ng-deep .mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+  border-color: #2575fc !important;
+  border-width: 2px !important;
+}
+
+::ng-deep .mat-mdc-form-field.mat-focused .mat-mdc-floating-label {
+  color: #2575fc !important;
+}
+
+/* Body-composition dialog style: labels stay readable on the dark UI. */
+::ng-deep .mat-mdc-form-field .mat-mdc-floating-label,
+::ng-deep .mat-mdc-form-field .mdc-floating-label,
+::ng-deep .mat-mdc-form-field mat-label {
+  color: rgba(255, 255, 255, 0.86) !important;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+}
+
+::ng-deep .mat-mdc-form-field:not(.mat-focused):hover .mat-mdc-floating-label,
+::ng-deep .mat-mdc-form-field:not(.mat-focused):hover .mdc-floating-label {
+  color: white !important;
+}
+
+/* Angular Material dims disabled labels aggressively; keep these labels white. */
+::ng-deep .mat-mdc-form-field-disabled .mat-mdc-floating-label,
+::ng-deep .mat-mdc-form-field-disabled .mdc-floating-label,
+::ng-deep .mdc-text-field--disabled .mat-mdc-floating-label,
+::ng-deep .mdc-text-field--disabled .mdc-floating-label,
+::ng-deep .mdc-text-field--disabled mat-label {
+  color: white !important;
+  opacity: 1 !important;
+}
+
+::ng-deep .mat-mdc-form-field.mat-focused:not(.mat-mdc-form-field-disabled) .mat-mdc-floating-label,
+::ng-deep .mat-mdc-form-field.mat-focused:not(.mat-mdc-form-field-disabled) .mdc-floating-label {
+  color: #2575fc !important;
+}
+
+::ng-deep .mat-mdc-text-field-wrapper .mat-mdc-form-field-input-control {
+  color: white !important;
+  font-weight: 600;
+}
+
+::ng-deep .mat-mdc-input-element::placeholder {
+  color: rgba(255, 255, 255, 0.36) !important;
+}
+
+::ng-deep .mdc-text-field--disabled {
+  background: rgba(255, 255, 255, 0.035) !important;
+  opacity: 1 !important;
+}
+
+::ng-deep .mdc-text-field--disabled .mat-mdc-input-element,
+::ng-deep .mdc-text-field--disabled .mat-mdc-form-field-input-control {
+  color: rgba(255, 255, 255, 0.72) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.72) !important;
+  cursor: default;
+}
+
+::ng-deep .mdc-text-field--disabled .mdc-notched-outline__leading,
+::ng-deep .mdc-text-field--disabled .mdc-notched-outline__notch,
+::ng-deep .mdc-text-field--disabled .mdc-notched-outline__trailing {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Mat suffix icons */
+::ng-deep .mat-mdc-form-field-icon-suffix {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  min-width: 48px !important;
+  width: 48px !important;
+  padding: 0 12px !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+::ng-deep .mat-mdc-form-field-icon-suffix mat-icon {
+  color: rgba(255, 255, 255, 0.3);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 24px !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  font-size: 24px !important;
+  line-height: 24px !important;
+  transition: color 0.2s ease, filter 0.2s ease;
+}
+
+::ng-deep .mat-mdc-form-field-icon-suffix .mat-icon {
+  font-family: 'Material Icons' !important;
+  font-feature-settings: 'liga' !important;
+  -webkit-font-feature-settings: 'liga' !important;
+}
+
+/* Icon hover */
+::ng-deep .mdc-text-field--outlined:hover .mat-mdc-form-field-icon-suffix mat-icon {
+  color: rgba(37, 117, 252, 0.6);
+}
+
+/* Icon focus */
+::ng-deep .mat-mdc-form-field.mat-focused .mat-mdc-form-field-icon-suffix mat-icon {
+  color: #2575fc;
+  filter: drop-shadow(0 0 5px rgba(37, 117, 252, 0.5));
+}
+
+/* Disabled field — muted, but still clear enough to read as read-only metadata. */
+::ng-deep .mdc-text-field--disabled .mat-mdc-form-field-icon-suffix mat-icon {
+  color: rgba(37, 117, 252, 0.45) !important;
+}
+
+.rich-text-field textarea.rich-textarea {
+  min-height: 160px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.markup-preview {
+  border: 1px solid rgba(37, 117, 252, 0.18);
+  background: rgba(37, 117, 252, 0.04);
+  padding: 12px 14px;
+  margin-top: -4px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+.markup-preview-title {
+  color: #2575fc;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.markup-preview-content {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+::ng-deep .markup-preview-content ul {
+  margin: 8px 0 8px 20px;
+  padding-left: 16px;
+}
+
+::ng-deep .markup-preview-content ul.sub-list {
+  margin-left: 34px;
+  list-style-type: circle;
+}
+
+/* Toggle row */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* Slide toggle override */
+::ng-deep .mdc-switch__track {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+::ng-deep .mdc-switch:enabled .mdc-switch__track::after {
+  background: #2575fc !important;
+}
+
+::ng-deep .mdc-switch .mdc-switch__handle {
+  background: white !important;
+}
+
+/* Day card inside meal / workout tabs */
+.day-card {
+  background: rgba(5, 5, 5, 0.98) !important;
+  border: 1px solid rgba(37, 117, 252, 0.12) !important;
+  border-radius: 0 !important;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+::ng-deep .day-card .mat-mdc-card-content {
+  padding: 0 !important;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(37, 117, 252, 0.05);
+  border-bottom: 1px solid rgba(37, 117, 252, 0.1);
+}
+
+.day-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #2575fc;
+}
+
+.day-body {
+  padding: 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.add-btn {
+  background: transparent;
+  border: 1px dashed rgba(37, 117, 252, 0.3);
+  color: #2575fc;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.add-btn:hover {
+  border-color: #2575fc;
+  background: rgba(37, 117, 252, 0.1);
+  text-shadow: 0 0 5px rgba(37, 117, 252, 0.3);
+}
+
+/* Item card (meal / exercise) */
+.item-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 14px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.item-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 1px;
+}
+
+.delete-item-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 51, 102, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 4px;
+}
+
+.delete-item-btn:hover {
+  color: #ff3366;
+  text-shadow: 0 0 8px rgba(255, 51, 102, 0.4);
+}
+
+/* Save bar */
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(37, 117, 252, 0.15);
+}
+
+.save-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.save-status.saving { color: #2575fc; }
+.save-status.success { color: #00ff66; }
+.save-status.error { color: #ff3366; }
+
+/* Loading state */
+.loading-terminal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: rgba(5, 5, 5, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.terminal-loader {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
+  color: #2575fc;
+  text-shadow: 0 0 8px rgba(37, 117, 252, 0.4);
+}
+
+.cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+  .edit-content-container { padding: 20px; }
+  .action-bar { flex-wrap: wrap; }
+}

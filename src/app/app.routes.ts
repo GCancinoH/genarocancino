@@ -30,6 +30,18 @@ export const routes: Routes = [
         title: "Perfil | Protocolo Ascenso"
     },
     {
+        path: 'ascenso/admin',
+        ...canActivate(redirectToSignIn),
+        loadComponent: () => import('@features/ascenso/admin/admin').then(c => c.AdminComponent),
+        title: "Panel de Administración | Protocolo Ascenso"
+    },
+    {
+        path: 'ascenso/admin/player-edit/:uid',
+        ...canActivate(redirectToSignIn),
+        loadComponent: () => import('@features/ascenso/admin/player-edit/player-edit').then(c => c.PlayerEditComponent),
+        title: "Editar Jugador | Protocolo Ascenso"
+    },
+    {
         path: 'about',
         loadComponent: () => import('@features/about/about').then(c => c.About),
     },

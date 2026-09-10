@@ -15,39 +15,45 @@ export class PlayerRepository {
   private readonly db = inject(Firestore);
   private readonly idb = inject(NgSignalDBService);
 
-  // Fuente de verdad: el usuario autenticado como signal
   readonly currentUser = toSignal(authState(this.auth));
 
-  // ─── SEÑAL LOCAL (la UI solo lee esto) ───────────────────────────────────
-  // Computed reactivo: cuando el uid cambia, el signal de IDB cambia también
-  readonly playerRewards = this.idb.db.player_rewards.get(
-    () => this.currentUser()?.uid
-  );
+  // Signal propio — fuente de verdad para la UI
+  private readonly _rewards = signal<PlayerRewardsModel | undefined>(undefined);
 
-  // ─── SYNC ORCHESTRATION ──────────────────────────────────────────────────
+  // Lo que la UI consume
+  readonly playerRewards = computed(() => ({
+    status: 'success' as const,
+    data: this._rewards()
+  }));
+
   private firestoreUnsub?: () => void;
 
   constructor() {
-    // Cuando cambia el usuario autenticado, re-sincronizamos
     effect(() => {
       const user = this.currentUser();
       this.stopSync();
       if (user) this.startSync(user.uid);
+      else this._rewards.set(undefined);
     });
   }
-
-  // ─── READS (solo desde IDB local) ────────────────────────────────────────
 
   getPlayer() {
     return this.currentUser();
   }
 
-  // ─── WRITES ──────────────────────────────────────────────────────────────
+  async getPlayerCustomClaims() {
+    return await this.auth.currentUser?.getIdTokenResult()
+      .then((idTokenResult) => {
+        return idTokenResult.claims;
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
 
   async updatePlayerProfile(data: Pick<User, 'displayName' | 'photoURL'>): Promise<Resource<void>> {
     const user = this.auth.currentUser;
     if (!user) return resource.error('No authenticated user');
-
     try {
       await updateProfile(user, data);
       return resource.success();
@@ -61,59 +67,66 @@ export class PlayerRepository {
     if (!uid) return resource.error('No authenticated user');
 
     try {
-      // 1. Optimistic update local inmediato (UI responde al instante)
-      const current = this.idb.db.player_rewards;
-      const localData = await current.getOne(uid) as PlayerRewardsModel | undefined;
-
-      if (localData) {
-        await current.put({
-          ...localData,
-          xp: localData.xp + xp,
-          coins: localData.coins + coins,
+      // Optimistic update inmediato en UI
+      const current = this._rewards();
+      if (current) {
+        this._rewards.set({
+          ...current,
+          xp: current.xp + xp,
+          coins: current.coins + coins,
         });
       }
 
-      // 2. Escritura remota (Firestore es el árbitro final)
-      const docRef = doc(this.db, `player_rewards/${uid}`);
-      await updateDoc(docRef, {
+      await updateDoc(doc(this.db, `player_rewards/${uid}`), {
         xp: increment(xp),
         coins: increment(coins),
       });
 
-      // onSnapshot sincronizará el valor real desde Firestore automáticamente
+      // onSnapshot traerá el valor real de Firestore
       return resource.success();
     } catch (err: any) {
-      // Si falla, onSnapshot traerá el valor correcto de Firestore
       return resource.error(err.message, undefined, err);
     }
   }
 
-  // ─── SYNC PRIVADO ────────────────────────────────────────────────────────
+  private async startSync(uid: string) {
+    // 1. Cargar inmediatamente desde IDB (offline-first)
+    const local = await this.idb.db.player_rewards.getOne(uid) as PlayerRewardsModel | undefined;
+    if (local) {
+      this._rewards.set(local);
+      console.log('[PlayerRepo] Loaded from IDB:', local);
+    }
 
-  private startSync(uid: string) {
+    // 2. Suscribirse a Firestore para sincronizar
     const docRef = doc(this.db, `player_rewards/${uid}`);
-
     this.firestoreUnsub = onSnapshot(
       docRef,
-      { includeMetadataChanges: false }, // Solo cambios confirmados del servidor
       async (snapshot) => {
-        if (snapshot.metadata.fromCache) return; // Ignorar cache de Firestore
-
-        const remoteData = snapshot.exists()
-          ? (snapshot.data() as PlayerRewardsModel)
-          : { xp: 0, level: 0, coins: 0 };
+        if (snapshot.metadata.fromCache && local) return;
 
         if (!snapshot.exists()) {
-          // Primera vez: inicializar en Firestore
-          await setDoc(docRef, remoteData);
+          const defaultData = { xp: 0, level: 0, coins: 0 };
+          if (!snapshot.metadata.fromCache) {
+            await setDoc(docRef, defaultData);
+          }
+          const merged = { ...defaultData, uid };
+          await this.idb.db.player_rewards.put(merged);
+          this._rewards.set(merged);
+          return;
         }
 
-        // NgSignalDB es la fuente de verdad local — Firestore la alimenta
-        await this.idb.db.player_rewards.put({ ...remoteData, uid });
+        const data = snapshot.data() as PlayerRewardsModel;
+        const merged = { ...data, uid };
+
+        // Persistir en IDB y actualizar signal
+        await this.idb.db.player_rewards.put(merged);
+        this._rewards.set(merged);
+
+        console.log('[PlayerRepo] Synced from Firestore:', merged);
       },
       (error) => {
-        console.error('[PlayerRepository] Firestore sync error:', error);
-        // La app sigue funcionando con los datos locales de NgSignalDB
+        console.error('[PlayerRepo] Firestore error, using IDB:', error);
+        // La UI sigue mostrando los datos de IDB sin cambios
       }
     );
   }
@@ -123,106 +136,3 @@ export class PlayerRepository {
     this.firestoreUnsub = undefined;
   }
 }
-
-/*getPlayer() {
-  const currentUser = this.user();
-  if (!currentUser) return;
-
-  const player: Player = {
-    uid: currentUser.uid,
-    displayName: currentUser.displayName,
-    email: currentUser.email,
-    photoURL: currentUser.photoURL,
-    createdAt: currentUser.metadata.creationTime,
-  }
-
-  return player;
-}*/
-
-/*getPlayer() {
-  return this.player();
-}
-
-async updatePlayerProfile(data: Partial<User>) {
-  const user = this.auth.currentUser;
-  if (!user) return;
-
-  const { displayName, photoURL } = data;
-
-  try {
-    await updateProfile(user, { displayName, photoURL });
-    console.log("Profile updated successfully for player " + user.uid + ". Data: " + displayName);
-  } catch (error) {
-    console.error(error);
-  }
-
-}
-
-getPlayerRewards(): Signal<PlayerRewardsModel | null> {
-  const id = this.auth.currentUser?.uid;
-  if (!id) null;
-
-  let signalData = signal<PlayerRewardsModel | null>(null);
-  const rewardDocument = doc(this.db, `player_rewards/${id}`);
-  onSnapshot(rewardDocument, (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data() as PlayerRewardsModel;
-      signalData.set(data);
-    }
-  });
-
-  return signalData;
-}
-
-async updatePlayerRewardsXPCoins(xp: number, coins: number): Promise<Resource<void>> {
-  const id = this.auth.currentUser?.uid;
-  if (!id) return resource.error("There is not an associated player");
-
-  try {
-    const rewardDocument = doc(this.db, `player_rewards/${id}`);
-
-    await updateDoc(rewardDocument, {
-      xp: increment(xp),
-      coins: increment(coins)
-    });
-    return resource.success(undefined, "Datos guardados exitosamente.");
-  } catch (error: any) {
-    console.error(error);
-    return resource.error(error.message || "Failed to update rewards", undefined, error);
-  }
-}
-
-
-// ... (getPlayerAttributesDataForFirestore stays same)
-
-getPlayerRewardsSignal() {
-  // We pass a function that returns the UID.
-  // The library handles the reactivity internally and ensures a stable Signal.
-  return this.dbService.db.player_rewards.get(() => this.user()?.uid);
-}
-
-private firestoreSyncUnsubscribe?: () => void;
-
-private startSync(uid: string) {
-  this.stopSync();
-
-  const docRef = doc(this.db, `player_rewards/${uid}`);
-  this.firestoreSyncUnsubscribe = onSnapshot(docRef, async (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.data() as PlayerRewardsModel;
-      console.log('[PlayerRepository] Firestore Update:', data);
-      await this.dbService.db.player_rewards.put({ ...data, uid });
-    } else {
-      const defaultData = { xp: 0, level: 0, coins: 0 };
-      setDoc(docRef, defaultData);
-      await this.dbService.db.player_rewards.put({ ...defaultData, uid });
-    }
-  });
-}
-
-private stopSync() {
-  if (this.firestoreSyncUnsubscribe) {
-    this.firestoreSyncUnsubscribe();
-    this.firestoreSyncUnsubscribe = undefined;
-  }
-}*/

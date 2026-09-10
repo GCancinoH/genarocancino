@@ -52,7 +52,7 @@ export class Profile {
   }
 
   async updateProfile() {
-    this.updateStatus.set(resource.loading());
+    this.updateStatus.set(resource.loading<void>());
     
     const result = await this.playerRepository.updatePlayerProfile({
       displayName: this.editableDisplayName,

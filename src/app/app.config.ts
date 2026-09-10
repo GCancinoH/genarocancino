@@ -1,5 +1,6 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
 
 import { routes } from './app.routes';
 import { initializeApp, provideFirebaseApp } from '@angular/fire/app';
@@ -13,12 +14,13 @@ import {
 import { getFirestore, provideFirestore } from '@angular/fire/firestore';
 import { getMessaging, provideMessaging } from '@angular/fire/messaging';
 import { getStorage, provideStorage } from '@angular/fire/storage';
-import { provideNgSignalDB } from 'ng-signal-db';
+import { IDB_ENGINE_FACTORY, MainThreadEngine, NgSignalDBConfig, provideNgSignalDB } from 'ng-signal-db';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
+    provideHttpClient(),
     provideFirebaseApp(() =>
       initializeApp({
         apiKey: "AIzaSyDdvW6dYcCOgtFH2eFfUCDEDEiUf_HYenQ",
@@ -37,13 +39,20 @@ export const appConfig: ApplicationConfig = {
     provideFirestore(() => getFirestore()),
     provideMessaging(() => getMessaging()),
     provideStorage(() => getStorage()),
-    provideNgSignalDB({ 
-      dbName: 'user-data', 
-      version: 2, 
+    provideNgSignalDB({
+      dbName: 'ascenso',
+      version: 2,
       stores: {
-        users: { keyPath: 'id' },
-        player_rewards: { keyPath: 'uid' }
-      } 
+        players: { keyPath: 'id' },
+        player_rewards: {
+          keyPath: 'uid',
+          indexes: [{ name: 'needsSync', keyPath: 'needsSync', unique: false }]
+        }
+      }
     }),
+    {
+      provide: IDB_ENGINE_FACTORY,
+      useValue: (config: NgSignalDBConfig) => new MainThreadEngine(config)
+    }
   ],
 };
