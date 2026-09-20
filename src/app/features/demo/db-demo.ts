@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NgSignalDBService } from 'ng-signal-db';
 
@@ -6,25 +6,24 @@ import { NgSignalDBService } from 'ng-signal-db';
   selector: 'app-db-demo',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div style="padding: 20px;">
       <h2>NgSignalDB Demo</h2>
       <button (click)="addUser()">Add User</button>
-      
+
       <div *ngIf="usersState() as state">
         <p>Status: {{ state.status }}</p>
         <ul>
-          <li *ngFor="let user of state.data">
-            {{ user.name }} ({{ user.id }})
-          </li>
+          <li *ngFor="let user of state.data">{{ user.name }} ({{ user.id }})</li>
         </ul>
       </div>
     </div>
-  `
+  `,
 })
 export class DbDemoComponent {
   private dbService = inject(NgSignalDBService);
-  
+
   // Fluent access: dbService.db.users
   usersState = this.dbService.db.users.asSignal();
 

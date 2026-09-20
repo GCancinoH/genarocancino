@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { form, required, FormField } from '@angular/forms/signals';
 // Material
-import { MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogRef } from '@angular/material/dialog';
+import {
+  MatDialogTitle,
+  MatDialogContent,
+  MatDialogActions,
+  MatDialogRef,
+} from '@angular/material/dialog';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
@@ -20,15 +25,26 @@ import { resource, Resource } from '@data/models/resource';
   standalone: true,
   imports: [
     FormField,
-    MatDialogTitle, MatDialogContent, MatDialogActions, MatButton, MatIcon, MatInput,
-    MatFormField, MatLabel, MatSuffix, MatFlex, MatSpacer, FullWidthDirective, MatIconButton
+    MatDialogTitle,
+    MatDialogContent,
+    MatDialogActions,
+    MatButton,
+    MatIcon,
+    MatInput,
+    MatFormField,
+    MatLabel,
+    MatSuffix,
+    MatFlex,
+    MatSpacer,
+    FullWidthDirective,
+    MatIconButton,
   ],
   template: `
     <div class="system-notification-container">
       <div class="system-header">
-          <div class="header-line"></div>
-          <span class="header-text">[ REGISTER NEW PLAYER ]</span>
-          <div class="header-line"></div>
+        <div class="header-line"></div>
+        <span class="header-text">[ REGISTER NEW PLAYER ]</span>
+        <div class="header-line"></div>
       </div>
 
       <mat-dialog-content>
@@ -36,19 +52,29 @@ import { resource, Resource } from '@data/models/resource';
           <mat-flex direction="column" gap="16px">
             <mat-form-field appearance="outline" fullWidth>
               <mat-label>NOMBRE COMPLETO</mat-label>
-              <input matInput type="text" [formField]="playerForm.nombre" placeholder="Ej. Juan Pérez">
+              <input
+                matInput
+                type="text"
+                [formField]="playerForm.nombre"
+                placeholder="Ej. Juan Pérez"
+              />
               <mat-icon matSuffix>person</mat-icon>
             </mat-form-field>
 
             <mat-form-field appearance="outline" fullWidth>
               <mat-label>EDAD</mat-label>
-              <input matInput type="number" [formField]="playerForm.edad">
+              <input matInput type="number" [formField]="playerForm.edad" />
               <mat-icon matSuffix>cake</mat-icon>
             </mat-form-field>
 
             <mat-form-field appearance="outline" fullWidth>
               <mat-label>CORREO ELECTRÓNICO</mat-label>
-              <input matInput type="email" [formField]="playerForm.correo" placeholder="ejemplo@correo.com">
+              <input
+                matInput
+                type="email"
+                [formField]="playerForm.correo"
+                placeholder="ejemplo@correo.com"
+              />
               <mat-icon matSuffix>email</mat-icon>
             </mat-form-field>
           </mat-flex>
@@ -56,7 +82,7 @@ import { resource, Resource } from '@data/models/resource';
           <div class="system-success-screen">
             <mat-icon class="success-icon">check_circle</mat-icon>
             <div class="success-title">JUGADOR REGISTRADO</div>
-            
+
             <div class="success-details">
               <div class="detail-row">
                 <span class="detail-label">UID:</span>
@@ -74,7 +100,11 @@ import { resource, Resource } from '@data/models/resource';
                 <span class="detail-label">CLAVE TEMP:</span>
                 <div class="pass-copy-container">
                   <span class="detail-val pass-text">{{ createdUser()?.password }}</span>
-                  <button mat-icon-button class="copy-btn" (click)="copyPassword(createdUser()?.password)">
+                  <button
+                    mat-icon-button
+                    class="copy-btn"
+                    (click)="copyPassword($safeNavigationMigration(createdUser()?.password))"
+                  >
                     <mat-icon>content_copy</mat-icon>
                   </button>
                 </div>
@@ -86,21 +116,29 @@ import { resource, Resource } from '@data/models/resource';
 
       <div class="system-footer">
         @if (!createdUser()) {
-          <button class="confirm-btn" (click)="onRegisterPlayer()" [disabled]="registerStatus()?.status === 'loading'">
-              <span class="btn-bracket">[</span>
-              @if (registerStatus()?.status === 'loading') {
-                  REGISTRANDO...
-              } @else {
-                  CREAR USUARIO
-              }
-              <span class="btn-bracket">]</span>
+          <button
+            class="confirm-btn"
+            (click)="onRegisterPlayer()"
+            [disabled]="registerStatus()?.status === 'loading'"
+          >
+            <span class="btn-bracket">[</span>
+            @if (registerStatus()?.status === 'loading') {
+              REGISTRANDO...
+            } @else {
+              CREAR USUARIO
+            }
+            <span class="btn-bracket">]</span>
           </button>
-          <button class="cancel-btn" (click)="dialogRef.close(false)" [disabled]="registerStatus()?.status === 'loading'">
-              <span class="btn-bracket">[</span> CANCELAR <span class="btn-bracket">]</span>
+          <button
+            class="cancel-btn"
+            (click)="dialogRef.close(false)"
+            [disabled]="registerStatus()?.status === 'loading'"
+          >
+            <span class="btn-bracket">[</span> CANCELAR <span class="btn-bracket">]</span>
           </button>
         } @else {
           <button class="confirm-btn" (click)="dialogRef.close(true)">
-              <span class="btn-bracket">[</span> CERRAR <span class="btn-bracket">]</span>
+            <span class="btn-bracket">[</span> CERRAR <span class="btn-bracket">]</span>
           </button>
         }
       </div>
@@ -283,7 +321,8 @@ import { resource, Resource } from '@data/models/resource';
       margin-top: 24px;
     }
 
-    .confirm-btn, .cancel-btn {
+    .confirm-btn,
+    .cancel-btn {
       background: transparent;
       border: none;
       font-weight: 800;
@@ -305,7 +344,8 @@ import { resource, Resource } from '@data/models/resource';
       color: rgba(255, 255, 255, 0.4);
     }
 
-    .confirm-btn:disabled, .cancel-btn:disabled {
+    .confirm-btn:disabled,
+    .cancel-btn:disabled {
       color: rgba(255, 255, 255, 0.2);
       cursor: not-allowed;
     }
@@ -374,7 +414,9 @@ export class NewPlayerDialog {
 
   async onRegisterPlayer() {
     if (!this.playerForm().valid) {
-      this._snackbar.open('Por favor, completa todos los campos del sistema.', 'OK', { duration: 3000 });
+      this._snackbar.open('Por favor, completa todos los campos del sistema.', 'OK', {
+        duration: 3000,
+      });
       return;
     }
 
@@ -389,12 +431,16 @@ export class NewPlayerDialog {
         this.createdUser.set(result.data);
         this._snackbar.open('Jugador creado en la base de datos.', 'OK', { duration: 3000 });
       } else if (result.status === 'error') {
-        this._snackbar.open(result.message || 'Error en la sincronización del jugador.', 'OK', { duration: 3000 });
+        this._snackbar.open(result.message || 'Error en la sincronización del jugador.', 'OK', {
+          duration: 3000,
+        });
       } else {
         this._snackbar.open('Error en la sincronización del jugador.', 'OK', { duration: 3000 });
       }
     } catch (error) {
-      this._snackbar.open('Error crítico al conectar con el servidor administrativo.', 'OK', { duration: 3000 });
+      this._snackbar.open('Error crítico al conectar con el servidor administrativo.', 'OK', {
+        duration: 3000,
+      });
       this.registerStatus.set(resource.error('Connection failed'));
     }
   }

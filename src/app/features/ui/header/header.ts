@@ -1,4 +1,4 @@
-import { Component, inject, input, model } from '@angular/core';
+import { Component, inject, input, model, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 // Material
 import { MatBadge } from '@angular/material/badge';
@@ -7,15 +7,23 @@ import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 
-type headerUse = "main" | "ascenso" | "dashboard";
+type headerUse = 'main' | 'ascenso' | 'dashboard';
 
 @Component({
   selector: 'gc-header',
   imports: [
     RouterLink,
-    MatBadge, MatButton, MatIcon, MatIconButton, MatMenu, MatMenuTrigger, MatMenuItem, MatDivider
+    MatBadge,
+    MatButton,
+    MatIcon,
+    MatIconButton,
+    MatMenu,
+    MatMenuTrigger,
+    MatMenuItem,
+    MatDivider,
   ],
   templateUrl: './header.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './header.scss',
 })
 export class Header {
@@ -27,8 +35,7 @@ export class Header {
   showDrawer = model<boolean>(false);
 
   useDrawer() {
-    this.showDrawer.update(v => !v);
+    this.showDrawer.update((v) => !v);
     console.log(this.showDrawer());
   }
-
 }

@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, ChangeDetectionStrategy } from '@angular/core';
 
 /**
  * A layout component that creates empty space between components.
@@ -7,15 +7,18 @@ import { Component, computed, input } from '@angular/core';
   selector: 'mat-spacer',
   standalone: true,
   template: `
-    <div [style.width]="widthStyle()" 
-         [style.height]="heightStyle()"
-         [style.flex]="flexStyle()"></div>
+    <div
+      [style.width]="widthStyle()"
+      [style.height]="heightStyle()"
+      [style.flex]="flexStyle()"
+    ></div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     :host {
       display: block;
     }
-  `
+  `,
 })
 export class MatSpacer {
   /** Width of the spacer. Can be a number (px) or a string (e.g. '24', '1rem'). */
@@ -38,7 +41,7 @@ export class MatSpacer {
   private formatValue(value: string | number | undefined): string | null {
     if (value === undefined || value === null || value === '') return null;
     if (typeof value === 'number') return `${value}px`;
-    
+
     // If it's a string representing a number (like "24"), add "px"
     const isNumeric = !isNaN(Number(value)) && !isNaN(parseFloat(value));
     return isNumeric ? `${value}px` : value;

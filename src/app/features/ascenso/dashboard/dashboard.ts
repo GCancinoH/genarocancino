@@ -1,4 +1,12 @@
-import { Component, inject, signal, computed, DestroyRef, effect } from '@angular/core';
+import {
+  Component,
+  inject,
+  signal,
+  computed,
+  DestroyRef,
+  effect,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 // Material
@@ -19,10 +27,21 @@ import { MatFlex } from '@features/ui/flex/flex';
 @Component({
   selector: 'app-dashboard',
   imports: [
-    Header, MatButton, MatFabButton, MatIcon, MatCardModule, MatDrawer, MatDrawerContainer, MatDrawerContent,
-    MatSpacer, MatFlex, MatDivider, RouterLink
+    Header,
+    MatButton,
+    MatFabButton,
+    MatIcon,
+    MatCardModule,
+    MatDrawer,
+    MatDrawerContainer,
+    MatDrawerContent,
+    MatSpacer,
+    MatFlex,
+    MatDivider,
+    RouterLink,
   ],
   templateUrl: './dashboard.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './dashboard.css',
 })
 export class Dashboard {
@@ -45,8 +64,9 @@ export class Dashboard {
   initials = computed(() => {
     const name = this.player()?.displayName;
     if (!name) return '??';
-    return name.split(' ')
-      .map(part => part[0])
+    return name
+      .split(' ')
+      .map((part) => part[0])
       .slice(0, 2)
       .join('')
       .toUpperCase();
@@ -56,7 +76,7 @@ export class Dashboard {
     effect(() => {
       const user = this.player();
       if (user) {
-        this.playerRepository.getPlayerCustomClaims().then(claims => {
+        this.playerRepository.getPlayerCustomClaims().then((claims) => {
           this.customClaims.set(claims);
           console.log('User custom claims:', claims);
         });

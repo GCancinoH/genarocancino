@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Auth, signInWithEmailAndPassword } from '@angular/fire/auth';
@@ -20,9 +20,10 @@ import { Router } from '@angular/router';
     MatInputModule,
     MatButtonModule,
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
   ],
   templateUrl: './sign-in.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './sign-in.css',
 })
 export class SignIn {
@@ -32,7 +33,7 @@ export class SignIn {
 
   signInForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required]]
+    password: ['', [Validators.required]],
   });
 
   isLoading = signal(false);
@@ -48,7 +49,9 @@ export class SignIn {
 
     try {
       if (!this.auth) {
-        throw new Error("Firebase Auth is not properly initialized. Make sure you provided it in app.config.ts.");
+        throw new Error(
+          'Firebase Auth is not properly initialized. Make sure you provided it in app.config.ts.',
+        );
       }
       await signInWithEmailAndPassword(this.auth, email!, password!);
       this.router.navigate(['ascenso/dashboard']);
@@ -59,4 +62,3 @@ export class SignIn {
     }
   }
 }
-

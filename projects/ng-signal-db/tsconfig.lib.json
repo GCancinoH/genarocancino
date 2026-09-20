@@ -9,6 +9,12 @@
     "types": []
   },
   "angularCompilerOptions": {
+    "extendedDiagnostics": {
+      "checks": {
+        "nullishCoalescingNotNullable": "suppress",
+        "optionalChainNotNullable": "suppress"
+      }
+    },
     "strictTemplates": true,
     "strictInputAccessModifiers": true,
     "strictInjectionParameters": true
