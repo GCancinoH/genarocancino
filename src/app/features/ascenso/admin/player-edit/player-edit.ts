@@ -20,6 +20,7 @@ import { Header } from '@features/ui/header/header';
 import { AdminRepository, PlayerRecord } from 'src/app/data/repositories/admin';
 import { MealDay, Meal } from 'src/app/data/models/player/meal-plan';
 import { WorkoutDay, Exercise } from 'src/app/data/models/player/workout-plan';
+import { waLink, welcomeMessage } from '@data/services/whatsapp';
 
 @Component({
   selector: 'app-player-edit',
@@ -66,6 +67,7 @@ export class PlayerEditComponent implements OnInit {
   playerForm = form(signal({
     displayName: '',
     email: '',
+    phone: '',
     age: 0 as number,
   }));
 
@@ -99,6 +101,7 @@ export class PlayerEditComponent implements OnInit {
       this.playerData.set(player);
       this.playerForm.displayName().value.set(player.displayName || '');
       this.playerForm.email().value.set(player.email || '');
+      this.playerForm.phone().value.set(player.phone || '');
       this.playerForm.age().value.set(player.age ?? 0);
       this.editDisabled.set(player.disabled);
       this.editPremium.set(player.customClaims?.premiumAccount ?? false);
@@ -128,6 +131,29 @@ export class PlayerEditComponent implements OnInit {
     this.location.back();
   }
 
+  /**
+   * Abre WhatsApp con el mensaje de bienvenida precargado.
+   * Nada se envía hasta que el nutriólogo pulsa enviar.
+   */
+  openWhatsApp(): void {
+    const name = this.playerForm.displayName().value();
+    const phone = this.playerForm.phone().value();
+    const link = waLink(phone, welcomeMessage(name));
+
+    if (!link) {
+      this.snackBar.open(
+        phone.trim()
+          ? `"${phone}" no es un número válido para WhatsApp. Usa lada internacional: +52 55 1234 5678.`
+          : 'Captura el teléfono antes de enviar el mensaje de bienvenida.',
+        'OK',
+        { duration: 6000 }
+      );
+      return;
+    }
+
+    window.open(link, '_blank', 'noopener,noreferrer');
+  }
+
   // ─── Toggle helpers ────────────────────────────────────────────────────
   /** Inverted signal for the "CUENTA ACTIVA" toggle — ON = active = !disabled */
   editActive = computed(() => !this.editDisabled());
@@ -148,6 +174,10 @@ export class PlayerEditComponent implements OnInit {
     const payload = {
       displayName: formValues.displayName || null,
       email: formValues.email || null,
+      // Vacío => '' y NO null: firestore.rules valida phone con
+      // isBoundedString, que solo acepta string (rechazaría null).
+      // minLen es 0, así que '' pasa y además limpia el teléfono viejo.
+      phone: formValues.phone?.trim() || '',
       age: formValues.age ?? null,
       disabled: this.editDisabled(),
       premiumAccount: this.editPremium(),

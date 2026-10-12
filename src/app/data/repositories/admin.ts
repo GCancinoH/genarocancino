@@ -12,6 +12,8 @@ export interface PlayerRecord {
   uid: string;
   displayName: string | null;
   email: string | null;
+  /** Teléfono capturado en el alta. Lo usa el botón de WhatsApp. */
+  phone?: string | null;
   customClaims: any;
   disabled: boolean;
 }
@@ -29,6 +31,7 @@ type PlayerDocument = Partial<PlayerRecord> & {
   edad?: number;
   nombre?: string;
   correo?: string;
+  telefono?: string;
   premiumAccount?: boolean;
 };
 
@@ -98,6 +101,7 @@ export class AdminRepository {
         uid: data.uid ?? docSnap.id,
         displayName: data.displayName ?? data.nombre ?? null,
         email: data.email ?? data.correo ?? null,
+        phone: data.phone ?? data.telefono ?? null,
         age: customClaims.age ?? data.age ?? data.edad,
         customClaims: {
           ...customClaims,
@@ -117,6 +121,7 @@ export class AdminRepository {
     data: {
       displayName?: string | null;
       email?: string | null;
+      phone?: string | null;
       age?: number | null;
       disabled?: boolean;
       premiumAccount?: boolean;
@@ -129,6 +134,7 @@ export class AdminRepository {
 
       if (data.displayName !== undefined) updatePayload['displayName'] = data.displayName;
       if (data.email !== undefined) updatePayload['email'] = data.email;
+      if (data.phone !== undefined) updatePayload['phone'] = data.phone;
       if (data.age !== undefined) updatePayload['age'] = data.age;
       if (data.disabled !== undefined) updatePayload['disabled'] = data.disabled;
       if (data.premiumAccount !== undefined) updatePayload['premiumAccount'] = data.premiumAccount;

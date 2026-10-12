@@ -18,7 +18,7 @@ import { CredentialsDialog } from '@features/ascenso/admin/pacientes/credentials
 import { ConnectivityService } from '@data/services/connectivity';
 import { PatientProfile } from '@data/models/patient/patient-profile';
 import { PatientsRepository, CreatePatientResult } from '@data/repositories/patients';
-import { normalizePhone, waLink, welcomeMessage } from '@data/services/whatsapp';
+import { waLink, welcomeMessage } from '@data/services/whatsapp';
 
 /**
  * Listado de pacientes (Fase 1).
@@ -146,17 +146,18 @@ import { normalizePhone, waLink, welcomeMessage } from '@data/services/whatsapp'
                 @if (patient.archived) {
                   <span class="badge archived-badge">ARCHIVADO</span>
                 }
-                @if (patient.phone) {
-                  <button
-                    type="button"
-                    class="wa-btn"
-                    title="Enviar bienvenida por WhatsApp"
-                    aria-label="Enviar bienvenida por WhatsApp"
-                    (click)="openWhatsApp(patient, $event)"
-                  >
-                    <mat-icon>chat</mat-icon>
-                  </button>
-                }
+                <button
+                  type="button"
+                  class="wa-btn"
+                  [class.no-phone]="!patient.phone"
+                  [attr.title]="patient.phone
+                    ? 'Enviar bienvenida por WhatsApp'
+                    : 'Sin teléfono: agrégalo desde el expediente'"
+                  aria-label="Enviar bienvenida por WhatsApp"
+                  (click)="openWhatsApp(patient, $event)"
+                >
+                  <mat-icon>{{ patient.phone ? 'chat' : 'chat_bubble_outline' }}</mat-icon>
+                </button>
               </div>
 
               <div class="card-content">
@@ -574,6 +575,20 @@ import { normalizePhone, waLink, welcomeMessage } from '@data/services/whatsapp'
       box-shadow: 0 0 8px rgba(37, 211, 102, 0.35);
     }
 
+    .wa-btn.no-phone {
+      opacity: 0.4;
+      border-color: rgba(255, 255, 255, 0.15);
+      background: transparent;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .wa-btn.no-phone:hover {
+      opacity: 1;
+      border-color: #25d366;
+      color: #25d366;
+      box-shadow: none;
+    }
+
     .wa-btn mat-icon {
       font-size: 17px;
       width: 17px;
@@ -768,22 +783,26 @@ export class PacientesComponent {
     // La tarjeta navega al expediente; el botón no debe hacerlo.
     event.stopPropagation();
 
+    if (!patient.phone) {
+      this.snackBar.open(
+        `${patient.displayName ?? 'Este paciente'} no tiene teléfono. Agrégalo desde el expediente.`,
+        'ABRIR',
+        { duration: 5000 }
+      ).onAction().subscribe(() => this.openPatient(patient.uid));
+      return;
+    }
+
     const link = waLink(patient.phone, welcomeMessage(patient.displayName));
     if (!link) {
       this.snackBar.open(
-        `No se pudo armar el enlace: "${patient.phone}" no es un número válido.`,
+        `"${patient.phone}" no es un número válido para WhatsApp. Usa lada internacional: +52 55 1234 5678.`,
         'OK',
-        { duration: 4000 }
+        { duration: 5000 }
       );
       return;
     }
 
     window.open(link, '_blank', 'noopener,noreferrer');
-  }
-
-  /** Teléfono ya normalizado, para mostrarlo junto al botón de WhatsApp. */
-  protected waPhone(phone?: string | null): string | null {
-    return normalizePhone(phone);
   }
 
   protected async retryDrafts(): Promise<void> {

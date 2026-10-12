@@ -78,6 +78,8 @@
 .text-blue { color: #2575fc; }
 .text-gray { color: rgba(255, 255, 255, 0.5); }
 .text-green { color: #00ff66; }
+.text-wa { color: #25d366; border-color: rgba(37, 211, 102, 0.45); }
+.text-wa:hover { background: rgba(37, 211, 102, 0.12); border-color: #25d366; }
 .text-red { color: #ff3366; }
 
 .action-btn:hover {

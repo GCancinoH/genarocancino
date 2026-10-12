@@ -20,6 +20,13 @@
 
       <span class="btn-spacer"></span>
 
+      <button class="action-btn text-wa" type="button" (click)="openWhatsApp()">
+        <span class="btn-bracket">[</span>
+        <mat-icon class="icon-inline">chat</mat-icon>
+        WHATSAPP
+        <span class="btn-bracket">]</span>
+      </button>
+
       <button class="action-btn text-green" (click)="saveAll()" [disabled]="saving()">
         <span class="btn-bracket">[</span>
         <mat-icon class="icon-inline">{{ saving() ? 'hourglass_top' : 'save' }}</mat-icon>
@@ -78,6 +85,20 @@
                     <mat-label>EDAD</mat-label>
                     <input matInput type="number" [formField]="playerForm.age" placeholder="Edad">
                     <mat-icon matSuffix>tag</mat-icon>
+                  </mat-form-field>
+                </div>
+
+                <div class="input-item">
+                  <mat-form-field appearance="outline" fullWidth>
+                    <mat-label>TELÉFONO</mat-label>
+                    <input
+                      matInput
+                      type="tel"
+                      [formField]="playerForm.phone"
+                      placeholder="+52 55 1234 5678"
+                    >
+                    <mat-icon matSuffix>phone</mat-icon>
+                    <mat-hint>Se usa para el botón de WhatsApp</mat-hint>
                   </mat-form-field>
                 </div>
               </div>
