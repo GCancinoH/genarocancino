@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { canActivate, redirectUnauthorizedTo, redirectLoggedInTo } from "@angular/fire/auth-guard"
+import { adminGuard } from '@data/guards/admin-guard';
 
 const redirectToSignIn = () => redirectUnauthorizedTo(['ascenso/sign-in']);
 const redirectToDashboard = () => redirectLoggedInTo(['ascenso/dashboard']);
@@ -30,16 +31,41 @@ export const routes: Routes = [
         title: "Perfil | Protocolo Ascenso"
     },
     {
+        // Panel del nutriólogo: shell con sidebar + secciones lazy.
+        // El claim `role === 'admin'` lo validan adminGuard (UI), Flask
+        // (require_role) y firestore.rules (datos). Una sola fuente de verdad.
         path: 'ascenso/admin',
-        ...canActivate(redirectToSignIn),
+        canActivate: [redirectToSignIn, adminGuard],
         loadComponent: () => import('@features/ascenso/admin/admin').then(c => c.AdminComponent),
-        title: "Panel de Administración | Protocolo Ascenso"
-    },
-    {
-        path: 'ascenso/admin/player-edit/:uid',
-        ...canActivate(redirectToSignIn),
-        loadComponent: () => import('@features/ascenso/admin/player-edit/player-edit').then(c => c.PlayerEditComponent),
-        title: "Editar Jugador | Protocolo Ascenso"
+        title: "Panel del Nutriólogo | Protocolo Ascenso",
+        children: [
+            {
+                // Fase 3: aquí housed el dashboard con KPIs.
+                path: '',
+                pathMatch: 'full',
+                redirectTo: 'pacientes'
+            },
+            {
+                path: 'pacientes',
+                loadComponent: () => import('@features/ascenso/admin/pacientes/pacientes').then(c => c.PacientesComponent),
+                title: "Pacientes | Protocolo Ascenso"
+            },
+            {
+                path: 'pacientes/:uid',
+                loadComponent: () => import('@features/ascenso/admin/player-edit/player-edit').then(c => c.PlayerEditComponent),
+                title: "Expediente | Protocolo Ascenso"
+            },
+            {
+                path: 'agenda',
+                loadComponent: () => import('@features/ascenso/admin/agenda/agenda').then(c => c.AgendaComponent),
+                title: "Agenda | Protocolo Ascenso"
+            },
+            {
+                // Compatibilidad con enlaces previos a la Fase 1.
+                path: 'player-edit/:uid',
+                redirectTo: 'pacientes/:uid'
+            }
+        ]
     },
     {
         path: 'about',

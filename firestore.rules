@@ -1,0 +1,474 @@
+rules_version = '2';
+
+// ===============================================================
+// Protocolo Ascenso — Firestore Security Rules (PROTOTIPO)
+// ===============================================================
+//
+// Roles (custom claims; los asigna el Admin SDK desde server/index.py):
+//   - 'admin'  -> nutriólogo: control total del panel
+//   - 'player' -> usuario de la app: únicamente SUS datos
+//
+// Ningún documento es público. Todo lo no listado aquí queda denegado
+// por el catch-all final.
+//
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: players              (id = Auth UID)
+//   displayName | nombre : string 1..120, opcional
+//   email | correo       : email válido, opcional
+//   age | edad          : number 0..120, opcional
+//   disabled            : bool, opcional
+//   premiumAccount      : bool, opcional
+//   customClaims        : map, opcional (solo Admin SDK)
+//   --- clínicos (Fase 1) ---
+//   birthDate           : string 'YYYY-MM-DD', opcional, inmutable
+//   sex                 : 'M'|'F'|'O', opcional
+//   phone               : string <= 32, opcional
+//   tags                : list, <= 12 elementos string <= 32, opcional
+//   motivoConsulta      : string <= 500, opcional
+//   initialWeight       : number 0..1000, opcional
+//   initialHeight       : number 0..1000, opcional
+//   mealPlan/workoutPlan: map, opcional
+//   archived/archivedAt : bool / timestamp, opcional
+//   createdAt/updatedAt : timestamp, opcional
+//   ultimaConsultaAt    : timestamp, opcional
+//
+// Collection: players/{uid}/consultations   (id autogenerado)
+//   date        : timestamp, requerido
+//   type        : 'inicial'|'seguimiento'|'ajuste'|'revision', requerido
+//   status      : 'pendiente'|'completada'|'cancelada', requerido
+//   metrics     : map {peso, talla, imc, grasa, musculo}, opcional
+//   notes       : map {motivo, observaciones, plan}, opcional
+//   nextReview  : timestamp, opcional
+//   patientUid  : string, requerido, inmutable
+//   author      : string (auth.uid), requerido, inmutable
+//   createdAt   : timestamp, requerido, inmutable
+//
+// Collection: players/{uid}/timeline       (id autogenerado, inmutable)
+//   type : string <= 40, requerido
+//   event: string <= 300, requerido
+//   at   : timestamp, requerido
+//   actor: == auth.uid, requerido
+//
+// Collection: appointments                  (id autogenerado)
+//   patientUid : string == doc existente en players, requerido, inmutable
+//   patientName: string 1..120, requerido, inmutable
+//   start/end  : timestamp, end > start, requeridos
+//   type       : 'inicial'|'seguimiento'|'ajuste'|'revision', requerido
+//   modality   : 'presencial'|'online', requerido
+//   status     : 'pendiente'|'confirmada'|'completada'|'no-asistio'|'cancelada'
+//   notes            : string <= 1000, opcional
+//   consultationId   : string, opcional
+//   createdBy/createdAt : auth.uid / timestamp, requeridos e inmutables
+//   updatedAt        : timestamp, opcional
+//
+// Collection: meal_plan_templates            (id autogenerado)
+//   name : string 1..80, requerido
+//   description : string <= 300, opcional
+//   plan : map, requerido
+//   tags : list, opcional
+//   createdBy/createdAt : requeridos e inmutables
+//
+// Collection: player_rewards                 (id = Auth UID)
+//   xp / level / coins : number, requeridos
+//
+// Collection: body_composition               (id autogenerado, inmutable)
+//   uID : == auth.uid, requerido
+//   date: timestamp, requerido
+//   weight / bmi / muscleMassPercentage / fatMassPercentage /
+//   bodyAge / visceralFat : number, opcionales
+//
+// Collection: sleep                          (id autogenerado)
+//   uID : == auth.uid, requerido
+//   date: timestamp, requerido
+//   duration / from / to / rem / deep / light : string <= 16, opcionales
+//   wakeUps / avgHR / avgspo2 : number, opcionales
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =============================================================
+    // Helpers
+    // =============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isSelf(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function hasOnly(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function hasAll(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    // Texto acotado: evita agotamiento de recursos con strings de ~1MB.
+    function isBoundedString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+        (data[field] is string &&
+         data[field].size() >= minLen &&
+         data[field].size() <= maxLen);
+    }
+
+    function isValidEmailField(data, field) {
+      return !(field in data) ||
+        (data[field] is string &&
+         data[field].matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"));
+    }
+
+    function isOptionalTimestamp(data, field) {
+      return !(field in data) || data[field] is timestamp;
+    }
+
+    function isOptionalNumberInRange(data, field, min, max) {
+      return !(field in data) ||
+        (data[field] is number && data[field] >= min && data[field] <= max);
+    }
+
+    // Firestore rules no itera listas: validamos tamaño y el primer elemento.
+    function isValidTagList(tags) {
+      return tags is list &&
+             tags.size() <= 12 &&
+             (tags.size() == 0 || (tags[0] is string && tags[0].size() <= 32));
+    }
+
+    // =============================================================
+    // players — perfil + expediente clínico
+    // =============================================================
+    match /players/{uid} {
+
+      // Campos clínicos del expediente (alta por mat-stepper). Se validan
+      // como maps con textos acotados: no se pueden iterar maps en rules,
+      // pero sí acotar tamaño y tipos para evitar payloads de 1 MB.
+      function validClinicalMaps(d) {
+        return (!(d.keys().hasAny(['anamnesis'])) || (
+                 d.anamnesis is map &&
+                 d.anamnesis.keys().hasOnly(['conditions', 'allergies', 'intolerances',
+                   'medications', 'familyHistory', 'surgeries', 'notes']) &&
+                 isBoundedString(d.anamnesis, 'allergies', 0, 1000) &&
+                 isBoundedString(d.anamnesis, 'medications', 0, 1000) &&
+                 isBoundedString(d.anamnesis, 'familyHistory', 0, 1000) &&
+                 isBoundedString(d.anamnesis, 'surgeries', 0, 1000) &&
+                 isBoundedString(d.anamnesis, 'notes', 0, 2000) &&
+                 (!(d.anamnesis.keys().hasAny(['conditions'])) || isValidTagList(d.anamnesis.conditions)) &&
+                 (!(d.anamnesis.keys().hasAny(['intolerances'])) || isValidTagList(d.anamnesis.intolerances)))) &&
+               (!(d.keys().hasAny(['objective'])) || (
+                 d.objective is map &&
+                 d.objective.keys().hasOnly(['goal', 'targetWeightKg', 'targetDate', 'patientExpectation']) &&
+                 d.objective.goal in ['perdida-peso', 'ganar-masa', 'recomposicion',
+                   'salud-metabolica', 'rendimiento-deportivo', 'mantenimiento'] &&
+                 isOptionalNumberInRange(d.objective, 'targetWeightKg', 0, 1000) &&
+                 isBoundedString(d.objective, 'targetDate', 0, 32) &&
+                 isBoundedString(d.objective, 'patientExpectation', 0, 1000))) &&
+               (!(d.keys().hasAny(['activity'])) || (
+                 d.activity is map &&
+                 d.activity.keys().hasOnly(['level', 'jobType', 'exerciseDays', 'exerciseType', 'routineTime']) &&
+                 d.activity.level in ['sedentario', 'ligero', 'moderado', 'intenso', 'atleta'] &&
+                 isBoundedString(d.activity, 'jobType', 0, 120) &&
+                 isOptionalNumberInRange(d.activity, 'exerciseDays', 0, 7) &&
+                 isBoundedString(d.activity, 'exerciseType', 0, 200) &&
+                 isBoundedString(d.activity, 'routineTime', 0, 32))) &&
+               (!(d.keys().hasAny(['food'])) || (
+                 d.food is map &&
+                 d.food.keys().hasOnly(['likes', 'dislikes', 'restrictions', 'intolerances', 'notes']) &&
+                 isBoundedString(d.food, 'notes', 0, 1000) &&
+                 (!(d.food.keys().hasAny(['likes'])) || isValidTagList(d.food.likes)) &&
+                 (!(d.food.keys().hasAny(['dislikes'])) || isValidTagList(d.food.dislikes)) &&
+                 (!(d.food.keys().hasAny(['restrictions'])) || isValidTagList(d.food.restrictions)) &&
+                 (!(d.food.keys().hasAny(['intolerances'])) || isValidTagList(d.food.intolerances)))) &&
+               (!(d.keys().hasAny(['bodyComposition'])) || (
+                 d.bodyComposition is map &&
+                 d.bodyComposition.keys().hasOnly(['fatPercentage', 'leanMassPercentage', 'visceralFat']) &&
+                 isOptionalNumberInRange(d.bodyComposition, 'fatPercentage', 0, 100) &&
+                 isOptionalNumberInRange(d.bodyComposition, 'leanMassPercentage', 0, 100) &&
+                 isOptionalNumberInRange(d.bodyComposition, 'visceralFat', 1, 59))) &&
+               (!(d.keys().hasAny(['foodRecord24h'])) || (
+                 d.foodRecord24h is map &&
+                 d.foodRecord24h.keys().hasOnly(['enabled', 'timeOfDay', 'notes']) &&
+                 d.foodRecord24h.enabled is bool &&
+                 d.foodRecord24h.timeOfDay is string &&
+                 d.foodRecord24h.timeOfDay.matches("^\\d{2}:\\d{2}$") &&
+                 isBoundedString(d.foodRecord24h, 'notes', 0, 2000)));
+      }
+
+      function validPlayerDocument() {
+        let d = request.resource.data;
+        return hasOnly(d, [
+            'uid', 'displayName', 'email', 'age', 'edad', 'nombre', 'correo',
+            'disabled', 'premiumAccount', 'customClaims',
+            'birthDate', 'sex', 'phone', 'tags', 'motivoConsulta',
+            'anamnesis', 'objective', 'activity', 'food',
+            'bodyComposition', 'foodRecord24h',
+            'initialWeight', 'initialHeight', 'mealPlan', 'workoutPlan',
+            'archived', 'archivedAt', 'createdAt', 'updatedAt',
+            'lastContactAt', 'lastConsultationAt', 'ultimaConsultaAt'
+          ]) &&
+          isBoundedString(d, 'displayName', 0, 120) &&
+          isBoundedString(d, 'nombre', 0, 120) &&
+          isValidEmailField(d, 'email') &&
+          isValidEmailField(d, 'correo') &&
+          isOptionalNumberInRange(d, 'age', 0, 120) &&
+          isOptionalNumberInRange(d, 'edad', 0, 120) &&
+          isOptionalNumberInRange(d, 'initialWeight', 0, 1000) &&
+          isOptionalNumberInRange(d, 'initialHeight', 0, 1000) &&
+          isBoundedString(d, 'phone', 0, 32) &&
+          isBoundedString(d, 'motivoConsulta', 0, 500) &&
+          isBoundedString(d, 'birthDate', 0, 32) &&
+          !(d.keys().hasAny(['sex']) && !(d.sex in ['M', 'F', 'O'])) &&
+          !(d.keys().hasAny(['tags']) && !isValidTagList(d.tags)) &&
+          !(d.keys().hasAny(['archived']) && !(d.archived is bool)) &&
+          isOptionalTimestamp(d, 'archivedAt') &&
+          isOptionalTimestamp(d, 'createdAt') &&
+          isOptionalTimestamp(d, 'updatedAt') &&
+          isOptionalTimestamp(d, 'lastContactAt') &&
+          isOptionalTimestamp(d, 'lastConsultationAt') &&
+          isOptionalTimestamp(d, 'ultimaConsultaAt') &&
+          validClinicalMaps(d) &&
+          (!(d.keys().hasAny(['mealPlan'])) || d.mealPlan is map) &&
+          (!(d.keys().hasAny(['workoutPlan'])) || d.workoutPlan is map);
+      }
+
+      function immutablePlayerFieldsUnchanged() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return !changed.hasAny(['uid']);
+      }
+
+      // El jugador SOLO lee su propio expediente.
+      // Toda escritura clínica es exclusiva del nutriólogo.
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isAdmin() && validPlayerDocument();
+      allow update: if isAdmin() && validPlayerDocument() &&
+                    immutablePlayerFieldsUnchanged();
+      allow delete: if isAdmin();
+
+      // --- Expediente: notas de consulta ---
+      match /consultations/{consultationId} {
+
+        function validConsultation() {
+          let d = request.resource.data;
+          return hasAll(d, ['date', 'type', 'status', 'createdAt']) &&
+                 hasOnly(d, [
+                   'date', 'type', 'status', 'metrics', 'notes',
+                   'nextReview', 'patientUid', 'author', 'createdAt'
+                 ]) &&
+                 d.date is timestamp &&
+                 d.createdAt is timestamp &&
+                 d.type in ['inicial', 'seguimiento', 'ajuste', 'revision'] &&
+                 d.status in ['pendiente', 'completada', 'cancelada'] &&
+                 isOptionalTimestamp(d, 'nextReview') &&
+                 (!(d.keys().hasAny(['metrics'])) ||
+                   (d.metrics is map &&
+                    d.metrics.keys().hasOnly(['peso', 'talla', 'imc', 'grasa', 'musculo']) &&
+                    isOptionalNumberInRange(d.metrics, 'peso', 0, 1000) &&
+                    isOptionalNumberInRange(d.metrics, 'talla', 0, 300) &&
+                    isOptionalNumberInRange(d.metrics, 'imc', 0, 100) &&
+                    isOptionalNumberInRange(d.metrics, 'grasa', 0, 100) &&
+                    isOptionalNumberInRange(d.metrics, 'musculo', 0, 100))) &&
+                 (!(d.keys().hasAny(['notes'])) ||
+                   (d.notes is map &&
+                    d.notes.keys().hasOnly(['motivo', 'observaciones', 'plan']) &&
+                    isBoundedString(d.notes, 'motivo', 0, 1000) &&
+                    isBoundedString(d.notes, 'observaciones', 0, 4000) &&
+                    isBoundedString(d.notes, 'plan', 0, 4000)));
+        }
+
+        function immutableConsultationFields() {
+          let changed = request.resource.data.diff(resource.data).affectedKeys();
+          return !changed.hasAny(['patientUid', 'author', 'createdAt']);
+        }
+
+        allow read: if isAdmin();
+        allow create: if isAdmin() && validConsultation();
+        allow update: if isAdmin() && validConsultation() &&
+                      immutableConsultationFields();
+        allow delete: if isAdmin();
+      }
+
+      // --- Expediente: bitácora de eventos (append-only) ---
+      match /timeline/{entryId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin() &&
+          hasOnly(request.resource.data, ['type', 'event', 'at', 'actor']) &&
+          hasAll(request.resource.data, ['type', 'event', 'at', 'actor']) &&
+          request.resource.data.type is string &&
+          request.resource.data.type.size() <= 40 &&
+          request.resource.data.event is string &&
+          request.resource.data.event.size() <= 300 &&
+          request.resource.data.at is timestamp &&
+          request.resource.data.actor == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    // =============================================================
+    // appointments — agenda de consultas
+    // =============================================================
+    match /appointments/{appointmentId} {
+
+      function validAppointment() {
+        let d = request.resource.data;
+        return hasAll(d, [
+                 'patientUid', 'patientName', 'start', 'end',
+                 'type', 'modality', 'status', 'createdBy', 'createdAt'
+               ]) &&
+               hasOnly(d, [
+                 'patientUid', 'patientName', 'start', 'end', 'type',
+                 'modality', 'status', 'notes', 'consultationId',
+                 'createdBy', 'createdAt', 'updatedAt'
+               ]) &&
+               d.patientUid is string &&
+               d.patientUid.size() > 0 &&
+               d.patientUid.size() <= 128 &&
+               // La cita debe apuntar a un paciente existente
+               exists(/databases/$(database)/documents/players/$(d.patientUid)) &&
+               d.patientName is string &&
+               d.patientName.size() >= 1 &&
+               d.patientName.size() <= 120 &&
+               d.start is timestamp &&
+               d.end is timestamp &&
+               d.end > d.start &&
+               d.type in ['inicial', 'seguimiento', 'ajuste', 'revision'] &&
+               d.modality in ['presencial', 'online'] &&
+               d.status in ['pendiente', 'confirmada', 'completada', 'no-asistio', 'cancelada'] &&
+               d.createdBy == request.auth.uid &&
+               d.createdAt is timestamp &&
+               isOptionalTimestamp(d, 'updatedAt') &&
+               isBoundedString(d, 'notes', 0, 1000) &&
+               isBoundedString(d, 'consultationId', 0, 128);
+      }
+
+      function immutableAppointmentFields() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return !changed.hasAny(['patientUid', 'patientName', 'createdBy', 'createdAt']);
+      }
+
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validAppointment();
+      allow update: if isAdmin() && validAppointment() &&
+                    immutableAppointmentFields();
+      allow delete: if isAdmin();
+    }
+
+    // =============================================================
+    // meal_plan_templates — planes reutilizables del nutriólogo
+    // =============================================================
+    match /meal_plan_templates/{templateId} {
+
+      function validTemplate() {
+        let d = request.resource.data;
+        return hasAll(d, ['name', 'plan', 'createdBy', 'createdAt']) &&
+               hasOnly(d, ['name', 'description', 'plan', 'tags', 'createdBy', 'createdAt']) &&
+               d.name is string && d.name.size() >= 1 && d.name.size() <= 80 &&
+               isBoundedString(d, 'description', 0, 300) &&
+               d.plan is map &&
+               d.createdBy == request.auth.uid &&
+               d.createdAt is timestamp;
+      }
+
+      function immutableTemplateFields() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return !changed.hasAny(['createdBy', 'createdAt']);
+      }
+
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validTemplate();
+      allow update: if isAdmin() && validTemplate() && immutableTemplateFields();
+      allow delete: if isAdmin();
+    }
+
+    // =============================================================
+    // player_rewards — XP / nivel / monedas del jugador
+    // =============================================================
+    match /player_rewards/{uid} {
+      function validRewards() {
+        let d = request.resource.data;
+        return hasAll(d, ['xp', 'level', 'coins']) &&
+               hasOnly(d, ['xp', 'level', 'coins']) &&
+               d.xp is number && d.xp >= 0 && d.xp <= 10000000 &&
+               d.level is number && d.level >= 0 && d.level <= 1000 &&
+               d.coins is number && d.coins >= 0 && d.coins <= 10000000;
+      }
+
+      allow read: if isSelf(uid) || isAdmin();
+      allow create, update: if isSelf(uid) && validRewards();
+      allow delete: if isAdmin();
+    }
+
+    // =============================================================
+    // body_composition — mediciones (histórico clínico inmutable)
+    // =============================================================
+    match /body_composition/{entryId} {
+      function validBodyComposition() {
+        let d = request.resource.data;
+        return hasAll(d, ['uID', 'date']) &&
+               hasOnly(d, [
+                 'uID', 'date', 'weight', 'bmi',
+                 'muscleMassPercentage', 'fatMassPercentage',
+                 'bodyAge', 'visceralFat'
+               ]) &&
+               d.uID == request.auth.uid &&
+               d.date is timestamp &&
+               isOptionalNumberInRange(d, 'weight', 0, 1000) &&
+               isOptionalNumberInRange(d, 'bmi', 0, 100) &&
+               isOptionalNumberInRange(d, 'muscleMassPercentage', 0, 100) &&
+               isOptionalNumberInRange(d, 'fatMassPercentage', 0, 100) &&
+               isOptionalNumberInRange(d, 'bodyAge', 0, 120) &&
+               isOptionalNumberInRange(d, 'visceralFat', 0, 200);
+      }
+
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.uID == request.auth.uid);
+      allow create: if isAuthenticated() && validBodyComposition();
+      allow update, delete: if false;
+    }
+
+    // =============================================================
+    // sleep — registros de sueño
+    // =============================================================
+    match /sleep/{entryId} {
+      function validSleep() {
+        let d = request.resource.data;
+        return hasAll(d, ['uID', 'date']) &&
+               hasOnly(d, [
+                 'uID', 'date', 'duration', 'from', 'to',
+                 'rem', 'deep', 'light', 'wakeUps', 'avgHR', 'avgspo2'
+               ]) &&
+               d.uID == request.auth.uid &&
+               d.date is timestamp &&
+               isBoundedString(d, 'duration', 0, 16) &&
+               isBoundedString(d, 'from', 0, 16) &&
+               isBoundedString(d, 'to', 0, 16) &&
+               isBoundedString(d, 'rem', 0, 16) &&
+               isBoundedString(d, 'deep', 0, 16) &&
+               isBoundedString(d, 'light', 0, 16) &&
+               isOptionalNumberInRange(d, 'wakeUps', 0, 100) &&
+               isOptionalNumberInRange(d, 'avgHR', 0, 300) &&
+               isOptionalNumberInRange(d, 'avgspo2', 0, 100);
+      }
+
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.uID == request.auth.uid);
+      allow create: if isAuthenticated() && validSleep();
+      allow update, delete: if isAdmin();
+    }
+
+    // =============================================================
+    // Catch-all: por defecto denegado
+    // =============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

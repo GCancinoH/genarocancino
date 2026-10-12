@@ -47,7 +47,10 @@ Thumbs.db
 .firebase
 *-debug.log
 .runtimeconfig.json
-server/python-fb.json
+
+# Backend: es un repo con su propio .git y su propio deploy (Vercel).
+# Trackearlo desde aquí genera duplicados y conflictos de historia.
+server/
 
 # Environment / secrets
 .env

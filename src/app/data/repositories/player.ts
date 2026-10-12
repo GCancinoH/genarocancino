@@ -131,8 +131,13 @@ export class PlayerRepository {
     );
   }
 
+  signOut() {
+    this.auth.signOut();
+  }
+
   private stopSync() {
     this.firestoreUnsub?.();
     this.firestoreUnsub = undefined;
   }
+
 }

@@ -55,6 +55,17 @@ export class Dashboard {
   readonly playerRewardsState = this.playerRepository.playerRewards;
   // computed
   readonly player = computed(() => this.playerRepository.getPlayer());
+
+  /**
+   * El rol vive en el custom claim `role === 'admin'` (misma fuente de
+   * verdad que usa `adminGuard`, el backend Flask y las firestore.rules).
+   * Se acepta también el claim booleano legado `admin: true` por si
+   * alguna cuenta todavía lo arrastra.
+   */
+  readonly isAdmin = computed(() => {
+    const claims = this.customClaims();
+    return claims?.['role'] === 'admin' || claims?.['admin'] === true;
+  });
   readonly name = computed(() => {
     let playerName = this.player()?.displayName || '';
     playerName = playerName.split(' ')[0];
@@ -88,5 +99,9 @@ export class Dashboard {
 
   openDashboardSheet() {
     this.bottomSheet.open(Dashboardsheet);
+  }
+
+  logout(): void {
+    this.playerRepository.signOut();
   }
 }

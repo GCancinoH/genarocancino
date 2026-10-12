@@ -60,7 +60,7 @@
         >
           <mat-icon>person</mat-icon> Mi Perfil
         </button>
-        @if (customClaims()?.admin) {
+        @if (isAdmin()) {
           <button
             mat-button
             class="action-btn"
@@ -71,6 +71,7 @@
           </button>
         }
         <button mat-button class="action-btn"><mat-icon>settings</mat-icon> Configuración</button>
+        <button mat-button class="action-btn" (click)="logout()"><mat-icon>logout</mat-icon> Cerrar Sesión</button>
         <mat-spacer></mat-spacer>
         <button mat-button color="warn" (click)="showDrawer.set(false)">
           <mat-icon>close</mat-icon> Cerrar
