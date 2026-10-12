@@ -1,19 +1,23 @@
 /**
  * Utilidades de WhatsApp.
  *
- * El enlace `https://wa.me/<numero>?text=<mensaje>` abre WhatsApp con el
- * chat listo y el mensaje precargado. No necesita backend, API key ni
- * costo: el nutriólogo le da click y envía.
+ * Se usa `web.whatsapp.com/send` (WhatsApp Web) y no `wa.me`:
+ * wa.me intenta abrir la app móvil, que no siempre está instalada en la
+ * computadora del nutriólogo. WhatsApp Web funciona desde el navegador
+ * con la sesión ya iniciada.
+ *
+ * El enlace solo abre el chat con el mensaje precargado: nada se envía
+ * hasta que el nutriólogo pulsa enviar.
  */
 
 /** URL base de la app (Firebase Hosting del proyecto `gc-nutrition`). */
 export const APP_URL = 'https://gc-nutrition.web.app';
 
 /**
- * Normaliza un teléfono al formato que espera `wa.me`: solo dígitos, sin
- * '+' ni espacios (ej. `5215512345678`).
+ * Normaliza un teléfono a solo dígitos, sin '+' ni nada más.
+ * Es exactamente lo que espera el parámetro `phone` de WhatsApp Web.
  *
- * OJO con el código de país: `wa.me` NO lo infiere. Si el número capturado
+ * OJO: WhatsApp Web NO infiere el código de país. Si el número capturado
  * es local (`55 1234 5678`) el chat no se resuelve, así que conviene
  * capturarlo con su lada internacional (`+52 55 1234 5678`).
  */
@@ -24,21 +28,25 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return digits.length >= 8 ? digits : null;
 }
 
-/** Mensaje de bienvenida, listo para codificar en la URL. */
+/**
+ * Mensaje de bienvenida con las credenciales.
+ *
+ * La contraseña NUNCA viaja por aquí: el mensaje solo indica que las
+ * credenciales llegaron por correo.
+ */
 export function welcomeMessage(displayName: string | null | undefined): string {
-  const name = (displayName ?? '').trim();
-  return [
-    name ? `Hola ${name}:` : 'Hola:',
-    '',
-    'Te damos la bienvenida al protocolo de nutrición.',
-    '',
-    'Ingresa con el correo que te enviamos:',
-    APP_URL,
-  ].join('\n');
+  const name = (displayName ?? '').trim() || 'Paciente';
+  return `Bienvenido(a) al Protocolo *ASCENSO*, ${name}
+
+El link para entrar a tu cuenta es ${APP_URL}
+Las credenciales las encontrarás en tu correo electrónico.
+
+Estamos en contacto.
+¡Un fuerte abrazo!`;
 }
 
 /**
- * Arma el enlace `wa.me` con el mensaje precargado.
+ * Arma el enlace de WhatsApp Web con el mensaje precargado.
  * Devuelve null si el teléfono no es válido.
  */
 export function waLink(
@@ -47,5 +55,9 @@ export function waLink(
 ): string | null {
   const digits = normalizePhone(phone);
   if (!digits) return null;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  // `encodeURIComponent` deja escapada la coma (%2C); se devuelve literal
+  // porque en la query de RFC 3986 la coma es válida sin escapar y así el
+  // texto queda idéntico a la plantilla.
+  const text = encodeURIComponent(message).replace(/%2C/g, ',');
+  return `https://web.whatsapp.com/send?phone=${digits}&text=${text}`;
 }
