@@ -21,6 +21,17 @@ import { AdminRepository, PlayerRecord } from 'src/app/data/repositories/admin';
 import { MealDay, Meal } from 'src/app/data/models/player/meal-plan';
 import { WorkoutDay, Exercise } from 'src/app/data/models/player/workout-plan';
 import { waLink, welcomeMessage } from '@data/services/whatsapp';
+import { PatientsRepository } from '@data/repositories/patients';
+import { PatientProfile } from '@data/models/patient/patient-profile';
+import {
+  ACTIVITY_LABELS,
+  GOAL_LABELS,
+  SEX_LABELS,
+  calculateImc,
+  classifyImc,
+  formatDate,
+  formatNumber,
+} from '@data/models/patient/patient-labels';
 
 @Component({
   selector: 'app-player-edit',
@@ -47,6 +58,7 @@ import { waLink, welcomeMessage } from '@data/services/whatsapp';
 export class PlayerEditComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly adminRepository = inject(AdminRepository);
+  private readonly patients = inject(PatientsRepository);
   private readonly location = inject(Location);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -62,6 +74,55 @@ export class PlayerEditComponent implements OnInit {
   selectedTab = signal(0);
   // ─── General Info ────────────────────────────────────────────────────
   playerData = signal<PlayerRecord & { age?: number } | null>(null);
+
+  // ─── Expediente clínico ──────────────────────────────────────────────
+  // Viene del espejo local / caché de Firestore (`players/{uid}`), que es
+  // donde el stepper de alta escribe anamnesis, objetivo, actividad,
+  // composición corporal y registro de 24 h. Es SOLO LECTURA por ahora.
+  protected readonly clinical = computed<PatientProfile | undefined>(() =>
+    this.patients.patientByUid(this.uid())
+  );
+
+  /** IMC de la captura inicial (peso kg / talla cm). */
+  protected readonly clinicalImc = computed<number | null>(() => {
+    const p = this.clinical();
+    return p ? calculateImc(p.initialWeight, p.initialHeight) : null;
+  });
+
+  /** Clasificación OMS del IMC inicial. */
+  protected readonly clinicalImcLabel = computed<string | null>(() =>
+    classifyImc(this.clinicalImc())
+  );
+
+  /** Dato de captura inicial presente, o false si el expediente quedó vacío. */
+  protected readonly hasClinicalData = computed<boolean>(() => {
+    const p = this.clinical();
+    if (!p) return false;
+    return Boolean(
+      p.anamnesis ||
+      p.objective ||
+      p.activity ||
+      p.food ||
+      p.bodyComposition ||
+      p.foodRecord24h ||
+      p.initialWeight ||
+      p.initialHeight
+    );
+  });
+
+  // Chips (siempre arrays, para poder iterarlos sin guardas en el template)
+  protected readonly clinicalTags = computed<string[]>(() => this.clinical()?.tags ?? []);
+  protected readonly conditionChips = computed<string[]>(
+    () => this.clinical()?.anamnesis?.conditions ?? []
+  );
+  protected readonly intoleranceChips = computed<string[]>(
+    () => this.clinical()?.anamnesis?.intolerances ?? []
+  );
+  protected readonly likesChips = computed<string[]>(() => this.clinical()?.food?.likes ?? []);
+  protected readonly dislikesChips = computed<string[]>(() => this.clinical()?.food?.dislikes ?? []);
+  protected readonly restrictionChips = computed<string[]>(
+    () => this.clinical()?.food?.restrictions ?? []
+  );
 
   // Signal Form for general info
   playerForm = form(signal({
@@ -81,6 +142,10 @@ export class PlayerEditComponent implements OnInit {
   workoutDays = signal<WorkoutDay[]>([]);
 
   ngOnInit() {
+    // Arranca la suscripción offline-first a `players`: el espejo local y la
+    // caché persistente de Firestore alimentan la pestaña clínica.
+    this.patients.start();
+
     const uidParam = this.route.snapshot.paramMap.get('uid');
     if (!uidParam) {
       this.snackBar.open('ERROR: No se especificó un ID de jugador.', 'OK', { duration: 5000 });
@@ -152,6 +217,36 @@ export class PlayerEditComponent implements OnInit {
     }
 
     window.open(link, '_blank', 'noopener,noreferrer');
+  }
+
+  // ─── Presentación del expediente clínico ──────────────────────────────
+  protected goalLabel(goal?: PatientProfile['objective'] | string): string {
+    const value = typeof goal === 'string' ? goal : goal?.goal;
+    if (!value) return '—';
+    return GOAL_LABELS[value as keyof typeof GOAL_LABELS] ?? value;
+  }
+
+  protected activityLabel(level?: string): string {
+    if (!level) return '—';
+    return ACTIVITY_LABELS[level as keyof typeof ACTIVITY_LABELS] ?? level;
+  }
+
+  protected sexLabel(sex?: string): string {
+    if (!sex) return '—';
+    return SEX_LABELS[sex as keyof typeof SEX_LABELS] ?? sex;
+  }
+
+  protected fmtDate(value?: string | null): string {
+    return formatDate(value);
+  }
+
+  protected fmtNum(value?: number | null, suffix = ''): string {
+    return formatNumber(value, suffix);
+  }
+
+  /** Une un array en texto; '—' si está vacío. */
+  protected fmtList(items?: string[] | null): string {
+    return items && items.length ? items.join(', ') : '—';
   }
 
   // ─── Toggle helpers ────────────────────────────────────────────────────

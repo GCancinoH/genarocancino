@@ -20,6 +20,13 @@ import {
   PatientProfile,
   Sex,
 } from '@data/models/patient/patient-profile';
+import {
+  ACTIVITY_OPTIONS,
+  GOAL_OPTIONS,
+  SEX_OPTIONS,
+  calculateImc,
+  classifyImc,
+} from '@data/models/patient/patient-labels';
 import { PatientsRepository } from '@data/repositories/patients';
 import { ConnectivityService } from '@data/services/connectivity';
 
@@ -45,23 +52,6 @@ const RESTRICTION_OPTIONS = [
   'Kosher',
   'Baja en sodio',
   'Baja en azúcar',
-];
-
-const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = [
-  { value: 'sedentario', label: 'SEDENTARIO' },
-  { value: 'ligero', label: 'LIGERO (1-2 DÍAS)' },
-  { value: 'moderado', label: 'MODERADO (3-4 DÍAS)' },
-  { value: 'intenso', label: 'INTENSO (5-6 DÍAS)' },
-  { value: 'atleta', label: 'ALTA RENDIMIENTO' },
-];
-
-const GOAL_OPTIONS: { value: PatientGoal; label: string }[] = [
-  { value: 'perdida-peso', label: 'PÉRDIDA DE PESO' },
-  { value: 'ganar-masa', label: 'GANAR MASA' },
-  { value: 'recomposicion', label: 'RECOMPOSICIÓN' },
-  { value: 'salud-metabolica', label: 'SALUD METABÓLICA' },
-  { value: 'rendimiento-deportivo', label: 'RENDIMIENTO DEPORTIVO' },
-  { value: 'mantenimiento', label: 'MANTENIMIENTO' },
 ];
 
 /**
@@ -749,11 +739,7 @@ export class PatientIntakeComponent {
   protected readonly saving = signal<boolean>(false);
   protected readonly online = this.connectivity.online;
 
-  protected readonly sexOptions: { value: Sex; label: string }[] = [
-    { value: 'F', label: 'FEMENINO' },
-    { value: 'M', label: 'MASCULINO' },
-    { value: 'O', label: 'OTRO' },
-  ];
+  protected readonly sexOptions = SEX_OPTIONS;
 
   protected readonly conditionOptions = CONDITION_OPTIONS;
   protected readonly restrictionOptions = RESTRICTION_OPTIONS;
@@ -839,24 +825,12 @@ export class PatientIntakeComponent {
   });
 
   /** IMC en vivo a partir de peso (kg) y talla (cm). */
-  protected readonly imc = computed<number | null>(() => {
-    const weight = this.form.pesoActual().value();
-    const heightCm = this.form.talla().value();
-    if (!weight || !heightCm) return null;
-    const heightM = heightCm / 100;
-    const value = weight / (heightM * heightM);
-    return Number.isFinite(value) ? Number(value.toFixed(1)) : null;
-  });
+  protected readonly imc = computed<number | null>(() =>
+    calculateImc(this.form.pesoActual().value(), this.form.talla().value())
+  );
 
   /** Clasificación del IMC según la OMS (adultos). */
-  protected readonly imcLabel = computed<string | null>(() => {
-    const value = this.imc();
-    if (value === null) return null;
-    if (value < 18.5) return 'BAJO PESO';
-    if (value < 25) return 'PESO NORMAL';
-    if (value < 30) return 'SOBREPESO';
-    return 'OBESIDAD';
-  });
+  protected readonly imcLabel = computed<string | null>(() => classifyImc(this.imc()));
 
   // ------------------------------------------------------------------
   // Chips de condiciones y restricciones

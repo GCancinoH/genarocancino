@@ -146,7 +146,297 @@
         </div>
       </mat-tab>
 
-      <!-- TAB 2: Meal Plan -->
+      <!-- TAB 2: EXPEDIENTE CLÍNICO -->
+      <mat-tab label="EXPEDIENTE CLÍNICO">
+        <div class="tab-content">
+          @if (!clinical()) {
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="empty-clinical">
+                  <mat-icon>hourglass_empty</mat-icon>
+                  <div>
+                    <div class="empty-title">CARGANDO EXPEDIENTE CLÍNICO...</div>
+                    <div class="empty-sub">Leyendo de la caché local o del servidor.</div>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          } @else if (!hasClinicalData()) {
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="empty-clinical warn">
+                  <mat-icon>warning</mat-icon>
+                  <div>
+                    <div class="empty-title">SIN DATOS CLÍNICOS CAPTURADOS</div>
+                    <div class="empty-sub">
+                      La cuenta existe pero el expediente clínico está vacío.
+                      Para capturar los 4 pasos (antecedentes, objetivo, actividad
+                      y alimentos) usa NUEVO PACIENTE desde el listado.
+                    </div>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          } @else {
+            <!-- IDENTIFICACIÓN -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">IDENTIFICACIÓN</div>
+                <div class="info-grid">
+                  <div class="info-cell">
+                    <span class="info-label">SEXO</span>
+                    <span class="info-value">{{ sexLabel(clinical()?.sex) }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">FECHA DE NACIMIENTO</span>
+                    <span class="info-value">{{ fmtDate(clinical()?.birthDate) }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">EDAD</span>
+                    <span class="info-value">{{ clinical()?.age ?? '—' }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">TELÉFONO</span>
+                    <span class="info-value">{{ clinical()?.phone || '—' }}</span>
+                  </div>
+                </div>
+
+                @if (clinicalTags().length) {
+                  <div class="chip-row">
+                    @for (tag of clinicalTags(); track tag) {
+                      <span class="chip">{{ tag }}</span>
+                    }
+                  </div>
+                }
+              </mat-card-content>
+            </mat-card>
+
+            <!-- ANTROPOMETRÍA -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">ANTROPOMETRÍA DE CAPTURA INICIAL</div>
+                <div class="info-grid">
+                  <div class="info-cell">
+                    <span class="info-label">PESO INICIAL</span>
+                    <span class="info-value">{{ fmtNum(clinical()?.initialWeight) }} <em class="unit">kg</em></span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">TALLA</span>
+                    <span class="info-value">{{ fmtNum(clinical()?.initialHeight) }} <em class="unit">cm</em></span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">IMC CALCULADO</span>
+                    <span class="info-value">{{ fmtNum(clinicalImc()) }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">CLASIFICACIÓN OMS</span>
+                    <span class="info-value">
+                      @if (clinicalImcLabel(); as label) {
+                        <span class="imc-pill">{{ label }}</span>
+                      } @else {
+                        —
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                @if (clinical()?.bodyComposition; as bc) {
+                  <div class="info-grid">
+                    <div class="info-cell">
+                      <span class="info-label">% GRASA</span>
+                      <span class="info-value">{{ fmtNum(bc.fatPercentage, ' %') }}</span>
+                    </div>
+                    <div class="info-cell">
+                      <span class="info-label">% MASA MAGRA</span>
+                      <span class="info-value">{{ fmtNum(bc.leanMassPercentage, ' %') }}</span>
+                    </div>
+                    <div class="info-cell">
+                      <span class="info-label">GRASA VISCERAL</span>
+                      <span class="info-value">{{ fmtNum(bc.visceralFat) }}</span>
+                    </div>
+                  </div>
+                }
+              </mat-card-content>
+            </mat-card>
+
+            <!-- ANAMNESIS -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">ANAMNESIS</div>
+
+                <span class="info-label">CONDICIONES MÉDICAS</span>
+                @if (conditionChips().length) {
+                  <div class="chip-row">
+                    @for (condition of conditionChips(); track condition) {
+                      <span class="chip accent">{{ condition }}</span>
+                    }
+                  </div>
+                } @else {
+                  <div class="info-text muted">—</div>
+                }
+
+                <div class="info-grid">
+                  <div class="info-cell">
+                    <span class="info-label">ALERGIAS</span>
+                    <span class="info-value">{{ clinical()?.anamnesis?.allergies || '—' }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">INTOLERANCIAS</span>
+                    <span class="info-value">{{ fmtList(intoleranceChips()) }}</span>
+                  </div>
+                </div>
+
+                <div class="info-block">
+                  <span class="info-label">FÁRMACOS / SUPLEMENTOS</span>
+                  <span class="info-text">{{ clinical()?.anamnesis?.medications || '—' }}</span>
+                </div>
+                <div class="info-block">
+                  <span class="info-label">ANTECEDENTES FAMILIARES</span>
+                  <span class="info-text">{{ clinical()?.anamnesis?.familyHistory || '—' }}</span>
+                </div>
+                <div class="info-block">
+                  <span class="info-label">CIRUGÍAS PREVIAS</span>
+                  <span class="info-text">{{ clinical()?.anamnesis?.surgeries || '—' }}</span>
+                </div>
+                <div class="info-block">
+                  <span class="info-label">NOTAS</span>
+                  <span class="info-text">{{ clinical()?.anamnesis?.notes || '—' }}</span>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- OBJETIVO -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">OBJETIVO TERAPÉUTICO</div>
+                <div class="info-grid">
+                  <div class="info-cell">
+                    <span class="info-label">OBJETIVO PRINCIPAL</span>
+                    <span class="info-value accent">{{ goalLabel(clinical()?.objective) }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">PESO META</span>
+                    <span class="info-value">{{ fmtNum(clinical()?.objective?.targetWeightKg) }} <em class="unit">kg</em></span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">FECHA META</span>
+                    <span class="info-value">{{ fmtDate(clinical()?.objective?.targetDate) }}</span>
+                  </div>
+                </div>
+
+                <div class="info-block">
+                  <span class="info-label">QUÉ ESPERA EL PACIENTE</span>
+                  <span class="info-text">{{ clinical()?.objective?.patientExpectation || '—' }}</span>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- ACTIVIDAD -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">ACTIVIDAD Y ESTILO DE VIDA</div>
+                <div class="info-grid">
+                  <div class="info-cell">
+                    <span class="info-label">NIVEL DE ACTIVIDAD</span>
+                    <span class="info-value">{{ activityLabel(clinical()?.activity?.level) }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">ACTIVIDAD LABORAL</span>
+                    <span class="info-value">{{ clinical()?.activity?.jobType || '—' }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">DÍAS DE EJERCICIO / SEMANA</span>
+                    <span class="info-value">{{ clinical()?.activity?.exerciseDays ?? '—' }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">TIPO DE EJERCICIO</span>
+                    <span class="info-value">{{ clinical()?.activity?.exerciseType || '—' }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">HORARIO HABITUAL</span>
+                    <span class="info-value">{{ clinical()?.activity?.routineTime || '—' }}</span>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- PREFERENCIAS ALIMENTARIAS -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">PREFERENCIAS ALIMENTARIAS</div>
+
+                <span class="info-label">LE GUSTAN</span>
+                @if (likesChips().length) {
+                  <div class="chip-row">
+                    @for (item of likesChips(); track item) {
+                      <span class="chip">{{ item }}</span>
+                    }
+                  </div>
+                } @else {
+                  <div class="info-text muted">—</div>
+                }
+
+                <span class="info-label">NO LE GUSTAN</span>
+                @if (dislikesChips().length) {
+                  <div class="chip-row">
+                    @for (item of dislikesChips(); track item) {
+                      <span class="chip">{{ item }}</span>
+                    }
+                  </div>
+                } @else {
+                  <div class="info-text muted">—</div>
+                }
+
+                <span class="info-label">RESTRICCIONES</span>
+                @if (restrictionChips().length) {
+                  <div class="chip-row">
+                    @for (item of restrictionChips(); track item) {
+                      <span class="chip warn">{{ item }}</span>
+                    }
+                  </div>
+                } @else {
+                  <div class="info-text muted">—</div>
+                }
+
+                <div class="info-block">
+                  <span class="info-label">NOTAS ALIMENTARIAS</span>
+                  <span class="info-text">{{ clinical()?.food?.notes || '—' }}</span>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- REGISTRO ALIMENTARIO 24H -->
+            <mat-card class="section-card">
+              <mat-card-content>
+                <div class="section-title">REGISTRO ALIMENTARIO DE 24 HORAS</div>
+                <div class="info-grid">
+                  <div class="info-cell">
+                    <span class="info-label">ESTADO</span>
+                    <span class="info-value">
+                      <span
+                        class="imc-pill"
+                        [class.off]="!clinical()?.foodRecord24h?.enabled"
+                      >
+                        {{ clinical()?.foodRecord24h?.enabled ? 'ACTIVO' : 'INACTIVO' }}
+                      </span>
+                    </span>
+                  </div>
+                  <div class="info-cell">
+                    <span class="info-label">HORA HABITUAL</span>
+                    <span class="info-value">{{ clinical()?.foodRecord24h?.timeOfDay || '—' }}</span>
+                  </div>
+                </div>
+                <div class="info-block">
+                  <span class="info-label">INSTRUCCIONES</span>
+                  <span class="info-text">{{ clinical()?.foodRecord24h?.notes || '—' }}</span>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          }
+        </div>
+      </mat-tab>
+
+      <!-- TAB 3: Meal Plan -->
       <mat-tab label="PLAN ALIMENTACIÓN">
         <div class="tab-content">
           <mat-card class="section-card">
