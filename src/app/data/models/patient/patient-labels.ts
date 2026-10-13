@@ -3,7 +3,7 @@ import { ActivityLevel, PatientGoal, Sex } from './patient-profile';
 /**
  * Etiquetas y utilidades de presentación clínica.
  *
- * Compartidas por el stepper de alta (`patient-intake`) y el expediente
+ * Compartidas por el alta de paciente (`new-patient`) y el expediente
  * (`player-edit`), para que el mismo dato se muestre igual en los dos lados.
  */
 

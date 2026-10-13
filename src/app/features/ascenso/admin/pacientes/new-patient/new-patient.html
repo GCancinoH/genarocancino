@@ -1,0 +1,382 @@
+<div class="intake">
+  <!-- Cabecera -->
+  <div class="intake-header">
+    <button
+      type="button"
+      class="back-btn"
+      (click)="goBack()"
+      aria-label="Volver al listado de pacientes"
+    >
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <span class="header-bracket">[</span>
+    <span class="header-text">ALTA DE PACIENTE</span>
+    <span class="header-bracket">]</span>
+  </div>
+
+  <mat-progress-bar
+    mode="indeterminate"
+    class="sync-bar"
+    [class.visible]="saving()"
+  />
+
+  <div class="offline-banner" [class.hidden]="online()">
+    <mat-icon>cloud_off</mat-icon>
+    <span>
+      SIN CONEXIÓN — se guardará como BORRADOR y el alta se completará
+      automáticamente al volver la señal.
+    </span>
+  </div>
+
+  <mat-stepper #stepper linear="false" class="intake-stepper">
+    <!-- ============ PASO 1: CUENTA ============ -->
+    <mat-step label="Datos">
+      <div class="step-body">
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>NOMBRE COMPLETO</mat-label>
+          <input matInput type="text" [formField]="form.nombre" placeholder="Ej. Ana López" />
+          <mat-icon matSuffix>person</mat-icon>
+          @if (form.nombre().touched() && form.nombre().invalid()) {
+            <mat-error>ES OBLIGATORIO (mínimo 2 caracteres)</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>EDAD</mat-label>
+            <input matInput type="number" [formField]="form.edad" />
+            @if (form.edad().touched() && form.edad().invalid()) {
+              <mat-error>ENTRE 1 Y 120</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>FECHA DE NACIMIENTO</mat-label>
+            <input matInput type="date" [formField]="form.fechaNacimiento" />
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>SEXO</mat-label>
+          <mat-select [formField]="form.sexo">
+            @for (option of sexOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>CORREO ELECTRÓNICO</mat-label>
+          <input matInput type="email" [formField]="form.correo" placeholder="ejemplo@correo.com" />
+          <mat-icon matSuffix>email</mat-icon>
+          @if (form.correo().touched() && form.correo().invalid()) {
+            <mat-error>CORREO VÁLIDO OBLIGATORIO</mat-error>
+          }
+          <mat-hint>Aquí se enviarán sus credenciales de acceso</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>TELÉFONO (opcional)</mat-label>
+          <input matInput type="tel" [formField]="form.telefono" placeholder="+52 55 1234 5678" />
+          <mat-icon matSuffix>phone</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <div class="step-actions">
+        <button matButton matStepperNext [disabled]="saving()">
+          CONTINUAR <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </mat-step>
+
+    <!-- ============ PASO 2: ANTECEDENTES ============ -->
+    <mat-step label="Antecedentes">
+      <div class="step-body">
+        <label class="field-label">CONDICIONES MÉDICAS</label>
+        <div class="option-grid">
+          @for (option of conditionOptions; track option) {
+            <button
+              type="button"
+              class="option-chip"
+              [class.selected]="hasCondition(option)"
+              (click)="toggleCondition(option)"
+            >
+              {{ option }}
+            </button>
+          }
+        </div>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>ALERGIAS</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            [formField]="form.alergias"
+            placeholder="Alimentos, fármacos, látex..."
+          ></textarea>
+        </mat-form-field>
+
+        <label class="field-label">INTOLERANCIAS</label>
+        <gc-chip-input
+          [items]="form.intolerancias().value()"
+          (itemsChange)="form.intolerancias().value.set($event)"
+          placeholder="LACTOSA, GLUTEN..."
+        />
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>FÁRMACOS / SUPLEMENTOS</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            [formField]="form.medicamentos"
+            placeholder="Nombre y dosis"
+          ></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>ANTECEDENTES FAMILIARES</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            [formField]="form.antecedentesFamiliares"
+            placeholder="Padres, hermanos, abuelos..."
+          ></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>CIRUGÍAS PREVIAS</mat-label>
+          <input matInput type="text" [formField]="form.cirugias" placeholder="Ej. bypass gástrico 2021" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>NOTAS</mat-label>
+          <textarea matInput rows="2" [formField]="form.notasAntecedentes"></textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="step-actions">
+        <button matButton matStepperPrevious>VOLVER</button>
+        <button matButton matStepperNext [disabled]="saving()">
+          CONTINUAR <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </mat-step>
+
+    <!-- ============ PASO 3: OBJETIVO Y ACTIVIDAD ============ -->
+    <mat-step label="Objetivo">
+      <div class="step-body">
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>OBJETIVO PRINCIPAL</mat-label>
+          <mat-select [formField]="form.objetivo">
+            @for (option of goalOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>PESO ACTUAL (KG)</mat-label>
+            <input matInput type="number" [formField]="form.pesoActual" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>TALLA (CM)</mat-label>
+            <input matInput type="number" [formField]="form.talla" />
+          </mat-form-field>
+        </div>
+
+        @if (imc() !== null) {
+          <div class="imc-banner">
+            <mat-icon>calculate</mat-icon>
+            <span>
+              IMC CALCULADO: <strong>{{ imc() }}</strong>
+              @if (imcLabel(); as label) {
+                <em class="imc-label">({{ label }})</em>
+              }
+            </span>
+          </div>
+        }
+
+        <label class="field-label">COMPOSICIÓN CORPORAL (OPCIONAL)</label>
+        <div class="field-row three-up">
+          <mat-form-field appearance="outline">
+            <mat-label>% GRASA</mat-label>
+            <input matInput type="number" [formField]="form.grasaPorcentaje" placeholder="24.5" />
+            <span matSuffix class="unit">%</span>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>% MASA MAGRA</mat-label>
+            <input matInput type="number" [formField]="form.masaMagraPorcentaje" placeholder="75.5" />
+            <span matSuffix class="unit">%</span>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>GRASA VISCERAL</mat-label>
+            <input matInput type="number" [formField]="form.grasaVisceral" placeholder="1-59" />
+          </mat-form-field>
+        </div>
+
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>PESO META (KG)</mat-label>
+            <input matInput type="number" [formField]="form.pesoMeta" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>FECHA META</mat-label>
+            <input matInput type="date" [formField]="form.fechaMeta" />
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>QUÉ ESPERA EL PACIENTE</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            [formField]="form.expectativa"
+            placeholder="En sus propias palabras..."
+          ></textarea>
+        </mat-form-field>
+
+        <label class="field-label">NIVEL DE ACTIVIDAD</label>
+        <mat-button-toggle-group
+          [formField]="form.nivelActividad"
+          class="toggle-group"
+          aria-label="Nivel de actividad"
+        >
+          @for (option of activityOptions; track option.value) {
+            <mat-button-toggle [value]="option.value">{{ option.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>ACTIVIDAD LABORAL</mat-label>
+            <input matInput type="text" [formField]="form.tipoTrabajo" placeholder="Sedentario, físico..." />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>DÍAS DE EJERCICIO / SEMANA</mat-label>
+            <input matInput type="number" [formField]="form.diasEjercicio" />
+          </mat-form-field>
+        </div>
+
+        <div class="field-row">
+          <mat-form-field appearance="outline">
+            <mat-label>TIPO DE EJERCICIO</mat-label>
+            <input matInput type="text" [formField]="form.tipoEjercicio" placeholder="Pesas, cardio..." />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>HORARIO HABITUAL</mat-label>
+            <input matInput type="time" [formField]="form.horarioEjercicio" />
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button matButton matStepperPrevious>VOLVER</button>
+        <button matButton matStepperNext [disabled]="saving()">
+          CONTINUAR <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </mat-step>
+
+    <!-- ============ PASO 4: ALIMENTOS Y RECORDATORIO ============ -->
+    <mat-step label="Alimentos">
+      <div class="step-body">
+        <label class="field-label">ALIMENTOS QUE LE GUSTAN</label>
+        <gc-chip-input
+          [items]="form.gusta().value()"
+          (itemsChange)="form.gusta().value.set($event)"
+          placeholder="AVOCADO, HUEVO, POLLO..."
+        />
+
+        <label class="field-label">ALIMENTOS QUE NO LE GUSTAN</label>
+        <gc-chip-input
+          [items]="form.noGusta().value()"
+          (itemsChange)="form.noGusta().value.set($event)"
+          placeholder="BRÓCOLI, HIGADO..."
+        />
+
+        <label class="field-label">RESTRICCIONES</label>
+        <div class="option-grid">
+          @for (option of restrictionOptions; track option) {
+            <button
+              type="button"
+              class="option-chip"
+              [class.selected]="hasRestriction(option)"
+              (click)="toggleRestriction(option)"
+            >
+              {{ option }}
+            </button>
+          }
+        </div>
+
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>NOTAS ALIMENTARIAS</mat-label>
+          <textarea
+            matInput
+            rows="2"
+            [formField]="form.notasAlimentos"
+            placeholder="Horario de comidas, cocina, presupuesto..."
+          ></textarea>
+        </mat-form-field>
+
+        <div class="reminder-box">
+          <mat-icon>restaurant_menu</mat-icon>
+          <div class="reminder-text">
+            <div class="reminder-title">REGISTRO ALIMENTARIO DE 24 HORAS</div>
+            <div class="reminder-sub">
+              El paciente anota todo lo que come y bebe durante un día
+              completo: horarios, cantidades y preparación.
+            </div>
+          </div>
+          <button
+            type="button"
+            class="toggle-switch"
+            [class.on]="form.registroActivo().value()"
+            role="switch"
+            [attr.aria-checked]="form.registroActivo().value()"
+            (click)="toggleFoodRecord()"
+          >
+            <span class="knob"></span>
+          </button>
+        </div>
+
+        @if (form.registroActivo().value()) {
+          <mat-form-field appearance="outline" fullWidth>
+            <mat-label>HORA EN QUE SUELE LLENARLO</mat-label>
+            <input matInput type="time" [formField]="form.registroHora" />
+            <mat-icon matSuffix>schedule</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" fullWidth>
+            <mat-label>INSTRUCCIONES PARA EL REGISTRO</mat-label>
+            <textarea
+              matInput
+              rows="2"
+              [formField]="form.registroNotas"
+              placeholder="Ej. anotar también bebidas y aperitivos entre comidas."
+            ></textarea>
+          </mat-form-field>
+        }
+      </div>
+
+      <div class="step-actions">
+        <button matButton matStepperPrevious [disabled]="saving()">VOLVER</button>
+        <button matButton (click)="submit()" [disabled]="saving()">
+          @if (saving()) {
+            GUARDANDO...
+          } @else if (online()) {
+            REGISTRAR PACIENTE
+          } @else {
+            GUARDAR BORRADOR
+          }
+        </button>
+      </div>
+    </mat-step>
+  </mat-stepper>
+</div>

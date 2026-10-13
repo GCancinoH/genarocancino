@@ -5,7 +5,6 @@ import { Router } from '@angular/router';
 // Material
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -13,11 +12,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 // UI
-import { PatientIntakeComponent } from '@features/ascenso/admin/pacientes/patient-intake';
-import { CredentialsDialog } from '@features/ascenso/admin/pacientes/credentials-dialog';
 import { ConnectivityService } from '@data/services/connectivity';
 import { PatientProfile } from '@data/models/patient/patient-profile';
-import { PatientsRepository, CreatePatientResult } from '@data/repositories/patients';
+import { PatientsRepository } from '@data/repositories/patients';
 import { waLink, welcomeMessage } from '@data/services/whatsapp';
 
 /**
@@ -34,7 +31,6 @@ import { waLink, welcomeMessage } from '@data/services/whatsapp';
     UpperCasePipe,
     MatButtonModule,
     MatButtonToggleModule,
-    MatDialogModule,
     MatFormFieldModule,
     MatIcon,
     MatInputModule,
@@ -52,7 +48,7 @@ import { waLink, welcomeMessage } from '@data/services/whatsapp';
           <span>{{ connectivity.statusLabel() }}</span>
         </div>
 
-        <button class="action-btn text-blue" (click)="openIntake()">
+        <button class="action-btn text-blue" (click)="newPatient()">
           <span class="btn-bracket">[</span>
           <mat-icon class="icon-inline">person_add</mat-icon>
           NUEVO PACIENTE
@@ -740,7 +736,6 @@ import { waLink, welcomeMessage } from '@data/services/whatsapp';
 export class PacientesComponent {
   protected readonly patients = inject(PatientsRepository);
   protected readonly connectivity = inject(ConnectivityService);
-  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -754,23 +749,15 @@ export class PacientesComponent {
     this.patients.start();
   }
 
-  protected openIntake(): void {
-    this.dialog
-      .open(PatientIntakeComponent, {
-        width: '640px',
-        maxWidth: '100vw',
-        disableClose: true,
-      })
-      .afterClosed()
-      .subscribe((result?: { status: string; data?: CreatePatientResult; phone?: string }) => {
-        if (result?.status === 'created' && result.data) {
-          this.dialog.open(CredentialsDialog, {
-            data: { ...result.data, phone: result.phone },
-            width: '460px',
-            maxWidth: '100vw',
-          });
-        }
-      });
+  /**
+   * Navega al alta de paciente.
+   *
+   * Antes abría `PatientIntakeComponent` como diálogo y, en `afterClosed()`,
+   * mostraba el diálogo de credenciales. Ahora el alta es la página
+   * `pacientes/nuevo`, que abre ese diálogo y vuelve al listado por su cuenta.
+   */
+  protected newPatient(): void {
+    void this.router.navigate(['/ascenso/admin/pacientes/nuevo']);
   }
 
   /**

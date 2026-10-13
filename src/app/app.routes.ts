@@ -51,6 +51,13 @@ export const routes: Routes = [
                 title: "Pacientes | Protocolo Ascenso"
             },
             {
+                // Debe ir ANTES de 'pacientes/:uid', o 'nuevo' se capturaría
+                // como si fuera un UID.
+                path: 'pacientes/nuevo',
+                loadComponent: () => import('@features/ascenso/admin/pacientes/new-patient/new-patient').then(c => c.NewPatient),
+                title: "Alta de paciente | Protocolo Ascenso"
+            },
+            {
                 path: 'pacientes/:uid',
                 loadComponent: () => import('@features/ascenso/admin/player-edit/player-edit').then(c => c.PlayerEditComponent),
                 title: "Expediente | Protocolo Ascenso"
