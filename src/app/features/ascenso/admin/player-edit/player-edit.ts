@@ -15,7 +15,6 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 // UI
 import { MatFlex } from '@features/ui/flex/flex';
 import { FullWidthDirective } from '@features/ui/full-width/full-width.directive';
-import { Header } from '@features/ui/header/header';
 // Backend
 import { AdminRepository, PlayerRecord } from 'src/app/data/repositories/admin';
 import { MealDay, Meal } from 'src/app/data/models/player/meal-plan';
@@ -47,7 +46,6 @@ import {
     MatInputModule,
     MatSlideToggleModule,
     MatSnackBarModule,
-    Header,
     MatFlex,
     FullWidthDirective,
   ],
