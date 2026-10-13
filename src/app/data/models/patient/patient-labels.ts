@@ -105,6 +105,38 @@ export function formatDate(value: string | null | undefined): string {
   return `${match[3]}/${match[2]}/${match[1]}`;
 }
 
+/**
+ * Edad en años completos a partir de una fecha 'YYYY-MM-DD'.
+ *
+ * Devuelve null si no hay fecha utilizable, si tiene un formato inválido o
+ * si es posterior a hoy.
+ *
+ * La fecha se parsea a mano en vez de con `new Date('YYYY-MM-DD')`: ese
+ * constructor interpreta la cadena como medianoche UTC, así que en zonas con
+ * desplazamiento negativo (México) el día retrocede y la edad se acaba
+ * calculando un día tarde — justo el día del cumpleaños.
+ */
+export function ageFromDate(value: string | null | undefined): number | null {
+  if (!value) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const anio = Number(match[1]);
+  const mes = Number(match[2]) - 1;
+  const dia = Number(match[3]);
+  if (!Number.isInteger(anio) || mes < 0 || mes > 11 || dia < 1 || dia > 31) return null;
+
+  const hoy = new Date();
+  // El cumpleaños cuenta recién en el día, no antes: si hoy cae el mismo
+  // mes y día, ya cumplió.
+  const yaCumplio =
+    hoy.getMonth() > mes || (hoy.getMonth() === mes && hoy.getDate() >= dia);
+
+  const edad = hoy.getFullYear() - anio - (yaCumplio ? 0 : 1);
+  return edad >= 0 ? edad : null;
+}
+
 /** Número con una decimal, o '—' si no hay dato. */
 export function formatNumber(value: number | null | undefined, suffix = ''): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—';

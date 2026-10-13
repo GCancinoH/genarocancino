@@ -16,43 +16,19 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ChipInput } from '@features/ui/chip-input/chip-input';
 import { FullWidthDirective } from '@features/ui/full-width/full-width.directive';
 import { CredentialsDialog } from '@features/ascenso/admin/pacientes/credentials-dialog';
-import {
-  ActivityLevel,
-  PatientGoal,
-  PatientProfile,
-  Sex,
-} from '@data/models/patient/patient-profile';
-import {
-  ACTIVITY_OPTIONS,
-  GOAL_OPTIONS,
-  SEX_OPTIONS,
-  calculateImc,
-  classifyImc,
-} from '@data/models/patient/patient-labels';
+import { ActivityLevel, PatientGoal, PatientProfile, Sex } from '@data/models/patient/patient-profile';
+import { ACTIVITY_OPTIONS, GOAL_OPTIONS, SEX_OPTIONS, ageFromDate, calculateImc, classifyImc} from '@data/models/patient/patient-labels';
 import { PatientsRepository } from '@data/repositories/patients';
 import { ConnectivityService } from '@data/services/connectivity';
 
 const CONDITION_OPTIONS = [
-  'Diabetes',
-  'Hipertensión',
-  'Hipotiroidismo',
-  'Síndrome de ovario poliquístico',
-  'Embarazo',
-  'Lactancia',
-  'Enfermedad celíaca',
-  'Gastritis / reflujo',
-  'Colesterol alto',
-  'Ninguna',
+  'Diabetes', 'Hipertensión', 'Hipotiroidismo', 'Síndrome de ovario poliquístico',
+  'Embarazo', 'Lactancia', 'Enfermedad celíaca', 'Gastritis / reflujo',
+  'Colesterol alto', 'Ninguna',
 ];
 
 const RESTRICTION_OPTIONS = [
-  'Vegetariano',
-  'Vegano',
-  'Sin gluten',
-  'Sin lactosa',
-  'Halal',
-  'Kosher',
-  'Baja en sodio',
+  'Vegetariano', 'Vegano', 'Sin gluten', 'Sin lactosa', 'Halal', 'Kosher', 'Baja en sodio',
   'Baja en azúcar',
 ];
 
@@ -74,7 +50,7 @@ const RESTRICTION_OPTIONS = [
  * completa sola al recuperar la señal (ver `PatientsRepository.flushDrafts`).
  */
 @Component({
-  selector: 'app-new-patient',
+  selector: 'new-patient',
   standalone: true,
   imports: [
     FormField,
@@ -116,7 +92,7 @@ export class NewPatient {
   private readonly model = signal({
     // Paso 1 — cuenta
     nombre: '',
-    edad: 18,
+    // La edad NO se captura: se deriva de `fechaNacimiento`.
     fechaNacimiento: '',
     sexo: 'F' as Sex,
     correo: '',
@@ -163,10 +139,6 @@ export class NewPatient {
     required(path.nombre);
     minLength(path.nombre, 2);
 
-    required(path.edad);
-    min(path.edad, 1);
-    max(path.edad, 120);
-
     required(path.correo);
     email(path.correo);
 
@@ -197,6 +169,16 @@ export class NewPatient {
 
   /** Clasificación del IMC según la OMS (adultos). */
   protected readonly imcLabel = computed<string | null>(() => classifyImc(this.imc()));
+
+  /**
+   * Edad derivada de la fecha de captura.
+   *
+   * No es un campo del formulario: no se captura, no se valida y no puede
+   * quedar desincronizada de la fecha. `null` mientras no haya fecha.
+   */
+  protected readonly edadCalculada = computed<number | null>(() =>
+    ageFromDate(this.form.fechaNacimiento().value())
+  );
 
   // ------------------------------------------------------------------
   // Chips de condiciones y restricciones
@@ -326,7 +308,7 @@ export class NewPatient {
     if (!stepper) return;
 
     // Solo el paso 1 tiene obligatorios; el resto se puede dejar en blanco.
-    if (this.form.nombre().invalid() || this.form.correo().invalid() || this.form.edad().invalid()) {
+    if (this.form.nombre().invalid() || this.form.correo().invalid()) {
       stepper.selectedIndex = 0;
     }
   }
@@ -341,7 +323,7 @@ export class NewPatient {
     return {
       displayName: this.form.nombre().value().trim(),
       email: this.form.correo().value().trim(),
-      age: Number(this.form.edad().value()),
+      age: this.edadCalculada() ?? undefined,
       sex: this.form.sexo().value(),
       birthDate: this.form.fechaNacimiento().value() || undefined,
       phone: this.form.telefono().value().trim() || undefined,

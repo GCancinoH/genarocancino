@@ -100,4 +100,27 @@ describe('NewPatient', () => {
     expect(calls.createPatient).toBe(0);
     expect(calls.navigate).toEqual([['/ascenso/admin/pacientes']]);
   });
+
+  it('deriva la edad de la fecha de nacimiento y la pinta en el campo', () => {
+    component['form'].fechaNacimiento().value.set('2000-01-01');
+    fixture.detectChanges();
+
+    const esperado = new Date().getFullYear() - 2000;
+    expect(component['edadCalculada']()).toBe(esperado);
+
+    // matInput sin formField puede pisar el valor del DOM, así que se
+    // comprueba que el número llega al input de verdad.
+    const input = fixture.nativeElement.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(input.value).toBe(String(esperado));
+    expect(input.readOnly).toBe(true);
+  });
+
+  it('deja la edad vacía mientras no haya fecha de nacimiento', () => {
+    fixture.detectChanges();
+
+    expect(component['edadCalculada']()).toBeNull();
+
+    const input = fixture.nativeElement.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(input.value).toBe('');
+  });
 });
