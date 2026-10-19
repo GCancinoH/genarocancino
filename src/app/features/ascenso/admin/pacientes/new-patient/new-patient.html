@@ -42,7 +42,7 @@
           <input matInput type="text" [formField]="form.nombre" placeholder="Ej. Ana López" />
           <mat-icon matSuffix>person</mat-icon>
           @if (form.nombre().touched() && form.nombre().invalid()) {
-            <mat-error>ES OBLIGATORIO (mínimo 2 caracteres)</mat-error>
+            <mat-error>¡Campo obligatorio!</mat-error>
           }
         </mat-form-field>
 

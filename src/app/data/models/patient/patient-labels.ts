@@ -12,14 +12,12 @@ import { ActivityLevel, PatientGoal, Sex } from './patient-profile';
 // ------------------------------------------------------------------
 export const SEX_LABELS: Record<Sex, string> = {
   M: 'MASCULINO',
-  F: 'FEMENINO',
-  O: 'OTRO / NO ESPECIFICADO',
+  F: 'FEMENINO'
 };
 
 export const SEX_OPTIONS: { value: Sex; label: string }[] = [
   { value: 'F', label: SEX_LABELS.F },
   { value: 'M', label: SEX_LABELS.M },
-  { value: 'O', label: SEX_LABELS.O },
 ];
 
 // ------------------------------------------------------------------

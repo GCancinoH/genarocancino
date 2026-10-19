@@ -1,11 +1,9 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { addDoc, collection, Firestore } from '@angular/fire/firestore';
 import { BodyCompositionModel } from '../models/body-composition';
 import { resource, Resource } from '../models/resource';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Service()
 export class BodyCompositionRepository {
   private readonly db = inject(Firestore);
 

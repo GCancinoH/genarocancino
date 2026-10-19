@@ -107,7 +107,7 @@
   padding: 16px 8px 8px;
   /* Antes, como diálogo, era 52vh. Como página hay más aire, pero sigue
      acotado para que los botones del paso queden siempre a la vista. */
-  max-height: max(320px, 62vh);
+  /*max-height: max(320px, 62vh);*/
   overflow-y: auto;
 }
 
@@ -279,7 +279,8 @@
 
 .step-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: right;
+  align-items: right;
   gap: 12px;
   padding: 12px 8px 20px;
 }

@@ -1,4 +1,4 @@
-import { inject, Injectable, signal, computed, effect, Signal } from '@angular/core';
+import { inject, Service, signal, computed, effect, Signal } from '@angular/core';
 import { authState, updateProfile, User } from '@angular/fire/auth';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Auth } from '@angular/fire/auth';
@@ -9,7 +9,7 @@ import { Observable } from 'rxjs';
 import { NgSignalDBService } from 'ng-signal-db';
 import { resource, Resource } from '../models/resource';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class PlayerRepository {
   private readonly auth = inject(Auth);
   private readonly db = inject(Firestore);

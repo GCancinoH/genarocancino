@@ -59,3 +59,17 @@ server/
 .venv/
 __pycache__/
 *.pyc
+
+# Herramientas locales: config de agentes y lockfiles de skills. No forman
+# parte de la app y solo ensucian el historial.
+.agents/
+.claude/
+.hermes/skills/
+PLAN_ADMIN.md
+skills-lock.json
+src/app/smae.xlsx
+
+# Borrador de modelos a medias, sin importar en ningún lado. Se ignora para
+# que no entre un archivo incompleto; si llegara a importarse, habría que
+# sacarlo del .gitignore o el build fallará en una copia limpia.
+src/app/data/models/patient/new-patient.ts

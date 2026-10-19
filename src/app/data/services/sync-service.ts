@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { Auth } from '@angular/fire/auth';
 import { doc, Firestore, getDoc, setDoc, writeBatch } from '@angular/fire/firestore';
 import { PlayerRewardsLocal } from '@data/models/player/player-rewards';
@@ -13,9 +13,7 @@ export interface SyncResult {
   error?: string;
 }
 
-@Injectable({
-  providedIn: 'root',
-})
+@Service()
 export class SyncService {
   private readonly auth = inject(Auth);
   private readonly db = inject(Firestore);

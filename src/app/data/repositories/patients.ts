@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, Injector, computed, effect, inject, signal } from '@angular/core';
+import { DestroyRef, Service, Injector, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, collection, doc, onSnapshot, serverTimestamp, setDoc } from '@angular/fire/firestore';
@@ -53,7 +53,7 @@ interface PlayerDocSnapshot extends Partial<PatientProfile> {
  *
  * La UI solo consume signals; nunca toca Firestore directamente.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class PatientsRepository {
   private readonly auth = inject(Auth);
   private readonly firestore = inject(Firestore);

@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { addDoc, collection, Firestore, getDocs, query, where } from '@angular/fire/firestore';
 // Repositories
 import { PlayerRepository } from './player';
@@ -6,9 +6,7 @@ import { SleepModel } from '../models/sleep';
 import { Auth } from '@angular/fire/auth';
 import { resource, Resource } from '../models/resource';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Service()
 export class SleepRepository {
   // inject
   private readonly db = inject(Firestore);

@@ -1,4 +1,4 @@
-import { Injectable, resource, computed, Signal, inject, NgZone, PLATFORM_ID, DestroyRef, Injector, runInInjectionContext, signal, Optional } from '@angular/core';
+import { Service, resource, computed, Signal, inject, NgZone, PLATFORM_ID, DestroyRef, Injector, runInInjectionContext, signal, Optional } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NgSignalDBConfig, IdbEngine, StoreConfig } from '../core/types';
 import { ReactivityManager } from '../reactivity/reactivity-manager';
@@ -37,7 +37,7 @@ export class QueryBuilder<T> {
   where(key: string): this {
     const isPk = this.storeConfig?.keyPath === key;
     const hasIndex = this.storeConfig?.indexes?.some(idx => idx.keyPath === key || (Array.isArray(idx.keyPath) && idx.keyPath.includes(key)));
-    
+
     if (!isPk && !hasIndex) {
       console.warn(`[NgSignalDB] No index found for "${key}" in store "${this.storeName}". This query will perform a full table scan.`);
     }
@@ -128,16 +128,16 @@ export class QueryBuilder<T> {
     return runInInjectionContext(this.injector, () => {
       const version = this.service.reactivity.getStoreVersion(this.storeName);
       const keySignal = typeof keyOrFn === 'function' ? computed(keyOrFn) : () => keyOrFn;
-      
+
       const dbResource = resource({
         loader: async () => {
           const key = keySignal();
           const v = version(); // Track dependency
           if (key === undefined || key === null) return undefined;
-          
+
           await this.service.initializedPromise;
           const rawData = await this.service.activeEngine.get<T>(this.storeName, key);
-          
+
           let processedData = rawData;
           if (processedData && this.config.plugins) {
             for (const plugin of this.config.plugins) {
@@ -165,7 +165,7 @@ export class QueryBuilder<T> {
         if (key !== undefined && key !== null) {
           const optimistic = this.service.reactivity.getOptimisticUpdates(this.storeName);
           const update = optimistic.get(key);
-          
+
           if (update) {
             if (update.type === 'put') return { status, data: update.data, error };
             if (update.type === 'delete') return { status, data: undefined, error };
@@ -180,7 +180,7 @@ export class QueryBuilder<T> {
   async getOne(key: IDBValidKey): Promise<T | undefined> {
     await this.service.initializedPromise;
     const rawData = await this.service.activeEngine.get<T>(this.storeName, key);
-    
+
     let processedData = rawData;
     if (processedData && this.config.plugins) {
       for (const plugin of this.config.plugins) {
@@ -208,7 +208,7 @@ export class QueryBuilder<T> {
     const id = this.getItemId(item);
     try {
       await this.service.initializedPromise;
-      
+
       let processedItem = item;
       if (this.config.plugins) {
         for (const plugin of this.config.plugins) {
@@ -247,7 +247,7 @@ export class QueryBuilder<T> {
   }
 }
 
-@Injectable()
+@Service()
 export class NgSignalDBService {
   private engine!: IdbEngine;
   private _reactivity: ReactivityManager;
@@ -331,7 +331,7 @@ export class NgSignalDBService {
     };
 
     tryInitialize();
-    
+
     this.proxy = new Proxy(this, {
       get: (target, prop: string) => {
         if (prop in target) return (target as any)[prop];

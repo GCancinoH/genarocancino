@@ -6,7 +6,7 @@
  * offline. Las fechas viajan como ISO string ('YYYY-MM-DD') o epoch millis.
  */
 
-export type Sex = 'M' | 'F' | 'O';
+export type Sex = 'M' | 'F' ;
 
 export type PatientGoal =
   | 'perdida-peso'

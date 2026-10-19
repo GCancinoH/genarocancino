@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Auth } from '@angular/fire/auth';
 import { collection, doc, Firestore, onSnapshot, setDoc, getDoc } from '@angular/fire/firestore';
@@ -35,9 +35,7 @@ type PlayerDocument = Partial<PlayerRecord> & {
   premiumAccount?: boolean;
 };
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class AdminRepository {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(Auth);

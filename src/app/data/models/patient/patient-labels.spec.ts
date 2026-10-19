@@ -141,7 +141,7 @@ describe('patient-labels', () => {
       // esto revienta en el tipado.
       expect(Object.keys(GOAL_LABELS).length).toBe(6);
       expect(Object.keys(ACTIVITY_LABELS).length).toBe(5);
-      expect(Object.keys(SEX_LABELS).length).toBe(3);
+      expect(Object.keys(SEX_LABELS).length).toBe(2);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Service, computed, inject, signal } from '@angular/core';
 
 /**
  * Estado de conexión y de la cola de sincronización.
@@ -11,7 +11,7 @@ import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
  * `pendingCount` cuenta las escrituras hechas offline que Firestore aún no
  * ha confirmado. Se recalcula con los borradores y los cambios encolados.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ConnectivityService {
   private readonly destroyRef = inject(DestroyRef);
 
