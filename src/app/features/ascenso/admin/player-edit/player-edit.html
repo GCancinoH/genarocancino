@@ -122,7 +122,7 @@
           </mat-card>
           <mat-card class="section-card">
             <mat-card-content>
-              <div class="section-title">INFORMACIÖN DEL SISTEMA</div>
+              <div class="section-title">INFORMACIÓN DEL SISTEMA</div>
               <div class="input-grid system-grid">
                 <div class="input-item">
                   <mat-form-field appearance="outline" fullWidth>
@@ -139,6 +139,47 @@
                   </mat-form-field>
                 </div>
               </div>
+            </mat-card-content>
+          </mat-card>
+
+          <!-- Gestión del usuario: archivar (reversible) y eliminar (definitivo) -->
+          <mat-card class="section-card danger-card">
+            <mat-card-content>
+              <div class="section-title">GESTIÓN DE USUARIO</div>
+
+              <p class="manage-hint">
+                <strong>ARCHIVAR</strong> oculta al paciente del listado y deja
+                todo el historial intacto; se puede deshacer en cualquier
+                momento. <strong>ELIMINAR</strong> borra expediente, datos
+                relacionados y cuenta de acceso de forma definitiva.
+              </p>
+
+              <div class="manage-actions">
+                <button
+                  type="button"
+                  class="manage-btn"
+                  [class.archived]="archived()"
+                  [disabled]="archiveBusy() || !clinical()"
+                  (click)="toggleArchive()"
+                >
+                  <mat-icon>{{ archived() ? 'unarchive' : 'archive' }}</mat-icon>
+                  {{ archived() ? 'RESTAURAR' : 'ARCHIVAR USUARIO' }}
+                </button>
+
+                <button
+                  type="button"
+                  class="manage-btn danger"
+                  [disabled]="deleting() || !clinical()"
+                  (click)="confirmDelete()"
+                >
+                  <mat-icon>delete_forever</mat-icon>
+                  {{ deleting() ? 'ELIMINANDO...' : 'ELIMINAR USUARIO' }}
+                </button>
+              </div>
+
+              @if (!clinical()) {
+                <p class="manage-wait">ESPERANDO DATOS DEL EXPEDIENTE...</p>
+              }
             </mat-card-content>
           </mat-card>
         </div>

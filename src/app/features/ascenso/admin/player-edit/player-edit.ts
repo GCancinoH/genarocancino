@@ -1,12 +1,14 @@
 import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { form, FormField } from '@angular/forms/signals';
+import { firstValueFrom } from 'rxjs';
 // Material
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -20,6 +22,7 @@ import { AdminRepository, PlayerRecord } from 'src/app/data/repositories/admin';
 import { MealDay, Meal } from 'src/app/data/models/player/meal-plan';
 import { WorkoutDay, Exercise } from 'src/app/data/models/player/workout-plan';
 import { waLink, welcomeMessage } from '@data/services/whatsapp';
+import { ConfirmDeleteDialog } from '@features/ascenso/admin/pacientes/confirm-delete-dialog';
 import { PatientsRepository } from '@data/repositories/patients';
 import { PatientProfile } from '@data/models/patient/patient-profile';
 import {
@@ -59,6 +62,8 @@ export class PlayerEditComponent implements OnInit {
   private readonly patients = inject(PatientsRepository);
   private readonly location = inject(Location);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
 
   // Route param
   uid = signal<string>('');
@@ -192,6 +197,87 @@ export class PlayerEditComponent implements OnInit {
 
   goBack() {
     this.location.back();
+  }
+
+  // ─── Archivar / eliminar ─────────────────────────────────────────────
+
+  /**
+   * Estado del expediente en el espejo local. También serve de "listo":
+   * hasta que no aparece, los botones de abajo están deshabilitados, para
+   * no acabar escribiendo un `archived` sobre un documento que aún no se ha
+   * leído.
+   */
+  protected readonly archived = computed<boolean>(() => this.clinical()?.archived ?? false);
+
+  protected readonly archiveBusy = signal<boolean>(false);
+  protected readonly deleting = signal<boolean>(false);
+
+  /** Archivar (oculta del listado) o restaurar. Nunca borra nada. */
+  protected async toggleArchive(): Promise<void> {
+    const uid = this.uid();
+    if (!uid || !this.clinical() || this.archiveBusy()) return;
+
+    const next = !this.archived();
+    this.archiveBusy.set(true);
+
+    const result = await this.patients.setArchived(uid, next);
+    this.archiveBusy.set(false);
+
+    if (result.status === 'success') {
+      this.snackBar.open(
+        next ? 'Paciente archivado. El historial queda intacto.' : 'Paciente restaurado.',
+        'OK',
+        { duration: 3500 }
+      );
+      return;
+    }
+
+    this.snackBar.open(
+      result.status === 'error' ? result.message : 'No se pudo archivar.',
+      'OK',
+      { duration: 5000 }
+    );
+  }
+
+  /** Pide confirmación y borra expediente, datos relacionados y cuenta. */
+  protected async confirmDelete(): Promise<void> {
+    const uid = this.uid();
+    const patient = this.clinical();
+    if (!uid || !patient || this.deleting()) return;
+
+    const confirmed = await firstValueFrom(
+      this.dialog
+        .open(ConfirmDeleteDialog, {
+          data: {
+            patient: { uid, displayName: patient.displayName, email: patient.email },
+          },
+          width: '440px',
+          maxWidth: '100vw',
+          disableClose: true,
+        })
+        .afterClosed()
+    );
+
+    if (!confirmed) return;
+
+    this.deleting.set(true);
+    const result = await this.patients.deletePatient(uid);
+    this.deleting.set(false);
+
+    if (result.status === 'success') {
+      this.snackBar.open('Paciente eliminado definitivamente.', 'OK', { duration: 4000 });
+      // Vuelve al listado: ya no hay expediente al que volver.
+      void this.router.navigate(['/ascenso/admin/pacientes']);
+      return;
+    }
+
+    // El repositorio distingue entre "faltan datos" y "falta la cuenta", así
+    // que el mensaje ya dice qué quedó pendiente.
+    this.snackBar.open(
+      result.status === 'error' ? result.message : 'No se pudo eliminar.',
+      'OK',
+      { duration: 9000 }
+    );
   }
 
   /**

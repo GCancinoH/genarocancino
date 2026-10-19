@@ -696,3 +696,101 @@
     gap: 12px;
   }
 }
+
+/* =============================================================
+   GESTIÓN DE USUARIO — archivar / eliminar
+   ============================================================= */
+.danger-card {
+  border-color: rgba(255, 51, 102, 0.28) !important;
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.06);
+}
+
+.danger-card .section-title {
+  color: #ff3366;
+  text-shadow: 0 0 5px rgba(255, 51, 102, 0.3);
+  border-bottom-color: rgba(255, 51, 102, 0.18);
+}
+
+.manage-hint {
+  margin: 0 0 16px;
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.manage-hint strong {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.manage-btn {
+  flex: 1 1 220px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(37, 117, 252, 0.07);
+  border: 1px solid rgba(37, 117, 252, 0.45);
+  border-radius: 3px;
+  color: #2575fc;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.manage-btn:hover:not(:disabled) {
+  background: rgba(37, 117, 252, 0.16);
+  box-shadow: 0 0 12px rgba(37, 117, 252, 0.3);
+}
+
+/* Estado archivado: el botón pasa a restaurar y se pinta en verde. */
+.manage-btn.archived {
+  background: rgba(0, 255, 102, 0.07);
+  border-color: rgba(0, 255, 102, 0.45);
+  color: #00ff66;
+}
+
+.manage-btn.archived:hover:not(:disabled) {
+  background: rgba(0, 255, 102, 0.16);
+  box-shadow: 0 0 12px rgba(0, 255, 102, 0.3);
+}
+
+.manage-btn.danger {
+  background: rgba(255, 51, 102, 0.07);
+  border-color: rgba(255, 51, 102, 0.5);
+  color: #ff3366;
+}
+
+.manage-btn.danger:hover:not(:disabled) {
+  background: #ff3366;
+  color: #000;
+  box-shadow: 0 0 14px rgba(255, 51, 102, 0.5);
+}
+
+.manage-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.manage-btn mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.manage-wait {
+  margin: 14px 0 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.35);
+}

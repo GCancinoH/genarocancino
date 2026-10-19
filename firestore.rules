@@ -431,7 +431,11 @@ service cloud.firestore {
       allow read: if isAdmin() ||
         (isAuthenticated() && resource.data.uID == request.auth.uid);
       allow create: if isAuthenticated() && validBodyComposition();
-      allow update, delete: if false;
+      // Inmutable para el jugador: el histórico no se edita ni se borra desde
+      // la app. Sí puede borrarlo el nutriólogo, porque al eliminar un
+      // expediente estos registros quedarían huérfanos.
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     // =============================================================

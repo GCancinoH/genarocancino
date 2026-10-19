@@ -1,7 +1,20 @@
 import { DestroyRef, Service, Injector, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Auth } from '@angular/fire/auth';
-import { Firestore, collection, doc, onSnapshot, serverTimestamp, setDoc } from '@angular/fire/firestore';
+import {
+  Firestore,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  QuerySnapshot,
+  serverTimestamp,
+  setDoc,
+  where,
+  writeBatch,
+} from '@angular/fire/firestore';
 import { NgSignalDBService } from 'ng-signal-db';
 import { firstValueFrom, Observable } from 'rxjs';
 import { resource, Resource } from '@data/models/resource';
@@ -310,6 +323,105 @@ export class PatientsRepository {
       archived,
       ...(archived ? { archivedAt: Date.now() } : {}),
     });
+  }
+
+  /**
+   * Borrado duro e irreversible del paciente.
+   *
+   * Firestore NO borra las subcolecciones de un documento al borrarlo, así
+   * que hay que recogerlas a mano, igual que las referencias sueltas que este
+   * paciente deja en `appointments`, `body_composition`, `sleep` y
+   * `player_rewards`.
+   *
+   * El paso final —la cuenta de Auth— pasa por el backend, porque desde el
+   * cliente no se puede borrar la cuenta de otro usuario. Va separado: si
+   * falla, los datos ya se fueron pero queda una cuenta de acceso viva, y el
+   * mensaje tiene que decirlo tal cual.
+   */
+  async deletePatient(uid: string): Promise<Resource<void>> {
+    if (!this.connectivity.online()) {
+      return resource.error('Sin conexión: el borrado necesita red.');
+    }
+
+    // 1-3 — Firestore
+    try {
+      await this.deleteByField('appointments', 'patientUid', uid);
+      await this.deleteByField('body_composition', 'uID', uid);
+      await this.deleteByField('sleep', 'uID', uid);
+
+      // Firestore no falla al borrar un documento inexistente.
+      await deleteDoc(doc(this.firestore, 'player_rewards', uid));
+
+      await this.deleteCollection(`players/${uid}/consultations`);
+      await this.deleteCollection(`players/${uid}/timeline`);
+      await deleteDoc(doc(this.firestore, 'players', uid));
+
+      // Espejo optimista, igual que en updatePatient: no esperar al snapshot.
+      this._patients.update((list) => list.filter((patient) => patient.uid !== uid));
+      await this.idb.db.patients.delete(uid);
+    } catch (error: any) {
+      console.error('[PatientsRepo] Borrado del expediente incompleto', error);
+      return resource.error(
+        'El borrado no se pudo completar. Algún dato del paciente sigue en Firestore; vuelve a intentarlo.',
+        undefined,
+        error
+      );
+    }
+
+    // 4 — cuenta de acceso
+    try {
+      const token = await this.auth.currentUser?.getIdToken();
+      const headers = new HttpHeaders({
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      });
+
+      await firstValueFrom(
+        this.http.post<{ message: string }>(`${this.apiUrl}/player-deletion`, { uid }, { headers })
+      );
+    } catch (error: any) {
+      console.error('[PatientsRepo] Cuenta de Auth sin borrar', error);
+      return resource.error(
+        'Los datos se borraron, pero la cuenta de acceso sigue activa. Vuelve a intentarlo para eliminarla.',
+        undefined,
+        error
+      );
+    }
+
+    return resource.success();
+  }
+
+  /** Borra los documentos de una colección cuyo campo coincide con `value`. */
+  private async deleteByField(
+    collectionName: string,
+    field: string,
+    value: string
+  ): Promise<void> {
+    const snapshot = await getDocs(
+      query(collection(this.firestore, collectionName), where(field, '==', value))
+    );
+    await this.deleteSnapshot(snapshot);
+  }
+
+  /** Borra todos los documentos de una subcolección. */
+  private async deleteCollection(collectionPath: string): Promise<void> {
+    const snapshot = await getDocs(collection(this.firestore, collectionPath));
+    await this.deleteSnapshot(snapshot);
+  }
+
+  /**
+   * Borra en tandas: Firestore admite como máximo 500 operaciones por
+   * batch, y un paciente con años de consultas lo supera.
+   */
+  private async deleteSnapshot(snapshot: QuerySnapshot): Promise<void> {
+    const CHUNK = 400;
+    for (let i = 0; i < snapshot.docs.length; i += CHUNK) {
+      const batch = writeBatch(this.firestore);
+      for (const docSnap of snapshot.docs.slice(i, i + CHUNK)) {
+        batch.delete(docSnap.ref);
+      }
+      await batch.commit();
+    }
   }
 
   // ---------------------------------------------------------------------
