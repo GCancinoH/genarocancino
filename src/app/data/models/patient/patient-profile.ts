@@ -53,10 +53,49 @@ export interface PatientObjective {
 export interface BodyComposition {
   /** % de grasa corporal. */
   fatPercentage?: number;
-  /** % de masa magra. */
+  /**
+   * % de masa magra. LEGADO: las altas nuevas ya no escriben este mapa en
+   * el perfil; van a `body_composition`. Se conserva para poder leer los
+   * expedientes capturados antes.
+   */
   leanMassPercentage?: number;
+  /**
+   * % de masa muscular. Diferente de la masa magra: la magra incluye
+   * hueso, agua y órganos; esta es solo músculo. Es el que mide la
+   * báscula del paciente, así que el alta pasó a pedirlo.
+   */
+  muscleMassPercentage?: number;
   /** Grasa visceral (escala 1–59 según bioimpedancia). */
   visceralFat?: number;
+}
+
+/**
+ * Alimento dentro de una sección de comida.
+ *
+ * Se captura tal como lo dice el paciente: "2 tortillas", "1 plato",
+ * "350 ml". No se convierte a gramos ni a kcal aquí — eso lo decide el
+ * nutriólogo al revisar.
+ */
+export interface FoodEntry {
+  /** Alimento, en las palabras del paciente. */
+  food: string;
+  /** Porción aproximada. */
+  portion: string;
+}
+
+/**
+ * Una comida del día: desayuno, comida, cena, colaciones...
+ *
+ * El número de secciones es libre porque los horarios reales no siempre
+ * son tres. El formulario arranca con tres por defecto.
+ */
+export interface MealSection {
+  /** Nombre de la comida: "Desayuno", "Comida 2"... */
+  name: string;
+  /** Hora aproximada, opcional. */
+  time?: string;
+  /** Alimentos de esta comida. */
+  items: FoodEntry[];
 }
 
 /**
@@ -69,21 +108,47 @@ export interface BodyComposition {
 export interface FoodRecord24h {
   /** Si el paciente está llevando el registro. */
   enabled: boolean;
-  /** Hora a la que el paciente suele llenarlo. */
-  timeOfDay: string;
+  /** Secciones de comida del día. */
+  meals?: MealSection[];
+  /**
+   * Legado: única hora del registro, capturada antes de que existieran las
+   * secciones. Se conserva para poder leer expedientes viejos; el formulario
+   * ya no la escribe.
+   */
+  timeOfDay?: string;
   /** Libre: cómo prepara la comida, con quién come, etc. */
   notes?: string;
+}
+
+/**
+ * Una actividad física del día, con la duración y el MET que le
+ * corresponde según el catálogo (`mets-catalog.ts`).
+ */
+export interface ExerciseEntry {
+  /** Actividad, tomada del catálogo de METs. */
+  activity: string;
+  /** Duración diaria, en minutos. */
+  minutes: number;
+  /** MET capturado al momento del alta. */
+  mets: number;
 }
 
 export interface PatientActivity {
   level: ActivityLevel;
   /** Tipo de trabajo: sedentario, mixto, físico. */
   jobType: string;
+  /** Horas de trabajo al día. */
+  jobHours?: number;
   /** Días por semana con ejercicio. */
   exerciseDays: number;
-  /** Tipo de ejercicio: pesas, cardio, crossfit, etc. */
-  exerciseType: string;
-  /** Horarios en los que suele hacer ejercicio. */
+  /** Rutina: cada actividad que hace, con su duración y MET. */
+  exercises?: ExerciseEntry[];
+  /**
+   * Legado: descripción libre del ejercicio, capturada antes del catálogo.
+   * Se conserva para leer expedientes viejos; el formulario ya no la escribe.
+   */
+  exerciseType?: string;
+  /** Legado: hora habitual de ejercicio. */
   routineTime?: string;
 }
 
@@ -117,11 +182,27 @@ export interface PatientProfile {
   objective?: PatientObjective;
   activity?: PatientActivity;
   food?: FoodPreferences;
+  /** LEGADO: el peso y los porcentajes van ahora a `body_composition`. */
   bodyComposition?: BodyComposition;
   /** Registro de todo lo que come/bebe en un día (no es una alarma). */
   foodRecord24h?: FoodRecord24h;
+  /** LEGADO: el peso inicial vive ahora en el doc de `baselineId`. */
   initialWeight?: number;
+  /** Talla en cm. Sí se queda aquí: es un atributo, no una serie. */
   initialHeight?: number;
+  /**
+   * id del doc de `body_composition` que es la línea base del paciente.
+   *
+   * Las altas nuevas escriben la medición inicial en esa colección —la
+   * misma a la que el paciente después registra sus pesajes desde el
+   * dashboard— para que comparar contra el punto de partida no obligue a
+   * leer dos sitios distintos.
+   *
+   * `undefined` en los expedientes capturados antes, que guardan el dato
+   * dentro del propio perfil: por eso la vista clínica consulta primero
+   * el puntero y si no está cae a `bodyComposition`.
+   */
+  baselineId?: string;
 
   // --- Operational ---
   tags?: string[];
@@ -178,8 +259,23 @@ export const EMPTY_FOOD: FoodPreferences = {
   notes: '',
 };
 
-/** Registro alimentario de 24 h por defecto (activado a las 08:00). */
+/**
+ * Tres comidas por defecto para el registro de 24 h.
+ *
+ * Se generan como función y no como constante compartida para que cada
+ * alta reciba su propio array: si fuera la misma referencia, añadir un
+ * alimento en un paciente contaminaría al siguiente.
+ */
+export function defaultMeals(): MealSection[] {
+  return [
+    { name: 'Comida 1', time: '08:00', items: [] },
+    { name: 'Comida 2', time: '14:00', items: [] },
+    { name: 'Comida 3', time: '20:00', items: [] },
+  ];
+}
+
+/** Registro alimentario de 24 h por defecto (activado, con tres comidas). */
 export const DEFAULT_FOOD_RECORD_24H: FoodRecord24h = {
   enabled: true,
-  timeOfDay: '08:00',
+  meals: defaultMeals(),
 };

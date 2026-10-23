@@ -592,6 +592,46 @@
   color: rgba(255, 255, 255, 0.35);
 }
 
+/* Listas de rutina física y de comidas del registro de 24 h. */
+.routine-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meal-block {
+  margin-top: 10px;
+}
+
+.meal-block > .info-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.routine-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.8rem;
+}
+
+.routine-name {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.8);
+  overflow-wrap: anywhere;
+}
+
+.routine-meta {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
 .info-value.accent {
   color: #2575fc;
 }

@@ -14,6 +14,45 @@
     box-sizing: border-box;
 }
 
+/*
+ * Tipografía de Material.
+ *
+ * El tema preinstalado (azure-blue) fija la fuente de todos sus roles de
+ * tipografía a Roboto, así que los inputs y selects de Material salían en
+ * Roboto mientras el resto de la interfaz iba en Inter: era esa la
+ * diferencia de fuente que se notaba en el alta de paciente.
+ *
+ * Se pone Inter, que es la fuente con la que está diseñado el panel
+ * (.admin-wrapper, .intake y los diálogos la declaran). No se hereda del
+ * contenedor porque los paneles de los select y los diálogos se montan en
+ * un overlay colgado del body: si el token dijera `inherit`, el disparador
+ * y su propia lista saldrían en fuentes distintas.
+ *
+ * Se sobreescriben los tokens `-font` (no los shorthand, que llevan
+ * tamaño y peso embebidos) porque es lo que los componentes leen de
+ * verdad: el form-field usa
+ * `font-family: var(--mat-form-field-container-text-font, var(--mat-sys-body-large-font))`,
+ * y el tema no llega a fijar el token específico, así que cae en el `sys`.
+ * Ningún componente usa el shorthand `font: var(--mat-sys-...)`.
+ */
+html {
+    --mat-sys-display-large-font: "Inter", sans-serif;
+    --mat-sys-display-medium-font: "Inter", sans-serif;
+    --mat-sys-display-small-font: "Inter", sans-serif;
+    --mat-sys-headline-large-font: "Inter", sans-serif;
+    --mat-sys-headline-medium-font: "Inter", sans-serif;
+    --mat-sys-headline-small-font: "Inter", sans-serif;
+    --mat-sys-title-large-font: "Inter", sans-serif;
+    --mat-sys-title-medium-font: "Inter", sans-serif;
+    --mat-sys-title-small-font: "Inter", sans-serif;
+    --mat-sys-body-large-font: "Inter", sans-serif;
+    --mat-sys-body-medium-font: "Inter", sans-serif;
+    --mat-sys-body-small-font: "Inter", sans-serif;
+    --mat-sys-label-large-font: "Inter", sans-serif;
+    --mat-sys-label-medium-font: "Inter", sans-serif;
+    --mat-sys-label-small-font: "Inter", sans-serif;
+}
+
 html,
 body {
     background-color: #050505;

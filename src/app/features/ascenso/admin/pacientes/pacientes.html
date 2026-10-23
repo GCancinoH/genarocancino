@@ -1,0 +1,158 @@
+<div class="section-container">
+  <!-- Barra superior: estado + alta -->
+  <div class="top-bar">
+    <div class="sync-status" [class.offline]="!connectivity.online()">
+      <mat-icon class="sync-icon">
+        {{ connectivity.inSync() ? 'cloud_done' : connectivity.online() ? 'sync' : 'cloud_off' }}
+      </mat-icon>
+      <span>{{ connectivity.statusLabel() }}</span>
+    </div>
+
+    <button class="action-btn text-blue" (click)="newPatient()">
+      <span class="btn-bracket">[</span>
+      <mat-icon class="icon-inline">person_add</mat-icon>
+      NUEVO PACIENTE
+      <span class="btn-bracket">]</span>
+    </button>
+  </div>
+
+  @if (patients.drafts().length) {
+    <div class="drafts-banner">
+      <mat-icon>schedule</mat-icon>
+      <span>
+        {{ patients.drafts().length }} BORRADOR(S) PENDIENTE(S) DE CREAR.
+        Se completarán solos al volver la señal.
+      </span>
+      <button class="retry-btn" (click)="retryDrafts()">REINTENTAR YA</button>
+    </div>
+  }
+
+  <!-- Buscador y filtros -->
+  <div class="filters">
+    <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+      <mat-label>BUSCAR</mat-label>
+      <input
+        matInput
+        type="search"
+        [formField]="searchField"
+        placeholder="Nombre, correo o tag"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="tag-field" subscriptSizing="dynamic">
+      <mat-label>ETIQUETA</mat-label>
+      <mat-select [formField]="tagField">
+        <mat-option [value]="null">TODAS</mat-option>
+        @for (tag of patients.availableTags(); track tag) {
+          <mat-option [value]="tag">{{ tag | uppercase }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-button-toggle-group
+      [formField]="sortField" class="sort-group" aria-label="Ordenar pacientes">
+      <mat-button-toggle value="recent">RECIENTES</mat-button-toggle>
+      <mat-button-toggle value="name">A-Z</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <button
+      type="button"
+      class="toggle-switch"
+      [class.on]="patients.showArchived()"
+      role="switch"
+      [attr.aria-checked]="patients.showArchived()"
+      (click)="patients.showArchived.update((v) => !v)"
+      title="Pacientes archivados">
+      <span class="knob"></span>
+    </button>
+  </div>
+
+  <div class="result-count">
+    {{ patients.filteredPatients().length }} DE {{ patients.patients().length }} PACIENTE(S)
+  </div>
+
+  @if (patients.status() === 'loading' && !patients.patients().length) {
+    <div class="loading-terminal">
+      <div class="terminal-loader">
+        <span class="cursor">></span> CARGANDO EXPEDIENTES...
+      </div>
+    </div>
+  } @else if (patients.error() && !patients.patients().length) {
+    <div class="error-terminal">
+      <mat-icon class="error-icon">warning</mat-icon>
+      <div class="error-message">ERROR: {{ patients.error() }}</div>
+    </div>
+  } @else {
+    <div class="patients-grid">
+      @for (patient of patients.filteredPatients(); track patient.uid) {
+        <article class="patient-card" (click)="openPatient(patient.uid)">
+          <div class="card-glow"></div>
+
+          <div class="card-header">
+            <div class="avatar">{{ initials(patient) }}</div>
+            <div class="title-info">
+              <div class="patient-name">{{ patient.displayName || 'SIN NOMBRE' }}</div>
+              <div class="patient-email">{{ patient.email || 'SIN CORREO' }}</div>
+            </div>
+            @if (patient.archived) {
+              <span class="badge archived-badge">ARCHIVADO</span>
+            }
+            <button
+              type="button"
+              class="wa-btn"
+              [class.no-phone]="!patient.phone"
+              [attr.title]="patient.phone
+                ? 'Enviar bienvenida por WhatsApp'
+                : 'Sin teléfono: agrégalo desde el expediente'"
+              aria-label="Enviar bienvenida por WhatsApp"
+              (click)="openWhatsApp(patient, $event)"
+            >
+              <mat-icon>{{ patient.phone ? 'chat' : 'chat_bubble_outline' }}</mat-icon>
+            </button>
+          </div>
+
+          <div class="card-content">
+            <div class="meta-row">
+              <span class="meta-label">EDAD</span>
+              <span class="meta-value">{{ patient.age ?? '—' }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">OBJETIVO</span>
+              <span class="meta-value goal">{{ goalLabel(patient) }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">ÚLTIMO CONTACTO</span>
+              <span class="meta-value">{{ lastContact(patient) }}</span>
+            </div>
+          </div>
+
+          @if (patient.tags?.length) {
+            <div class="tags">
+              @for (tag of patient.tags; track tag) {
+                <span class="tag">{{ tag }}</span>
+              }
+            </div>
+          }
+
+          <div class="card-footer">
+            <span class="reminder" [class.active]="patient.foodRecord24h?.enabled">
+              <mat-icon>restaurant_menu</mat-icon>
+              {{ patient.foodRecord24h?.enabled ? 'REGISTRO 24H' : 'SIN REGISTRO 24H' }}
+            </span>
+            <span class="open-link">
+              EXPEDIENTE <mat-icon>arrow_forward</mat-icon>
+            </span>
+          </div>
+        </article>
+      } @empty {
+        <div class="empty-terminal">
+          <mat-icon>folder_open</mat-icon>
+          <div>
+            {{ patients.patients().length ? 'NINGÚN PACIENTE COINCIDE CON EL FILTRO.' : 'AÚN NO HAY PACIENTES. REGISTRA EL PRIMERO.' }}
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

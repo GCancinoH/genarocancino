@@ -138,10 +138,57 @@ service cloud.firestore {
     }
 
     // Firestore rules no itera listas: validamos tamaño y el primer elemento.
+    // Límite de las listas de etiquetas (condiciones, intolerancias,
+    // alimentos y restricciones).
+    //
+    // El tope era 12. Se subió a 24 porque el listado de restricciones del
+    // alta creció y, con el tope viejo, marcar demasiadas opciones dejaba el
+    // guardado sin efecto sin que la app dijera nada.
+    //
+    // OJO: solo se acota `tags[0]`. Las rules de Firestore no permiten
+    // iterar una lista, así que el tamaño de cada elemento restante no se
+    // puede comprobar aquí; eso lo acota el formulario.
     function isValidTagList(tags) {
       return tags is list &&
-             tags.size() <= 12 &&
+             tags.size() <= 24 &&
              (tags.size() == 0 || (tags[0] is string && tags[0].size() <= 32));
+    }
+
+    // Las listas estructuradas (ejercicio del paciente y comidas del
+    // registro de 24 h) siguen la misma limitación que isValidTagList: sin
+    // iteración posible, solo se acotan el tamaño de la lista y la forma
+    // del PRIMER elemento. El límite por elemento lo pone el formulario.
+    function isValidExerciseList(list) {
+      return list is list &&
+             list.size() <= 20 &&
+             (list.size() == 0 || (
+               list[0] is map &&
+               list[0].keys().hasOnly(['activity', 'minutes', 'mets']) &&
+               isBoundedString(list[0], 'activity', 1, 80) &&
+               isOptionalNumberInRange(list[0], 'minutes', 0, 1440) &&
+               isOptionalNumberInRange(list[0], 'mets', 0, 30)));
+    }
+
+    function isValidFoodItemList(items) {
+      return items is list &&
+             items.size() <= 40 &&
+             (items.size() == 0 || (
+               items[0] is map &&
+               items[0].keys().hasOnly(['food', 'portion']) &&
+               isBoundedString(items[0], 'food', 0, 200) &&
+               isBoundedString(items[0], 'portion', 0, 100)));
+    }
+
+    function isValidMealList(meals) {
+      return meals is list &&
+             meals.size() <= 12 &&
+             (meals.size() == 0 || (
+               meals[0] is map &&
+               meals[0].keys().hasOnly(['name', 'time', 'items']) &&
+               isBoundedString(meals[0], 'name', 1, 64) &&
+               isBoundedString(meals[0], 'time', 0, 32) &&
+               (!(meals[0].keys().hasAny(['items'])) ||
+                 isValidFoodItemList(meals[0].items))));
     }
 
     // =============================================================
@@ -174,12 +221,20 @@ service cloud.firestore {
                  isBoundedString(d.objective, 'patientExpectation', 0, 1000))) &&
                (!(d.keys().hasAny(['activity'])) || (
                  d.activity is map &&
-                 d.activity.keys().hasOnly(['level', 'jobType', 'exerciseDays', 'exerciseType', 'routineTime']) &&
+                 // `exerciseType` y `routineTime` son campos legados: ya no
+                 // los escribe el formulario (ahora va en `exercises`), pero
+                 // se dejan permitidos para que un expediente viejo pueda
+                 // reescribirse sin que el hasOnly lo rechace.
+                 d.activity.keys().hasOnly(['level', 'jobType', 'jobHours', 'exerciseDays',
+                   'exercises', 'exerciseType', 'routineTime']) &&
                  d.activity.level in ['sedentario', 'ligero', 'moderado', 'intenso', 'atleta'] &&
                  isBoundedString(d.activity, 'jobType', 0, 120) &&
+                 isOptionalNumberInRange(d.activity, 'jobHours', 0, 24) &&
                  isOptionalNumberInRange(d.activity, 'exerciseDays', 0, 7) &&
                  isBoundedString(d.activity, 'exerciseType', 0, 200) &&
-                 isBoundedString(d.activity, 'routineTime', 0, 32))) &&
+                 isBoundedString(d.activity, 'routineTime', 0, 32) &&
+                 (!(d.activity.keys().hasAny(['exercises'])) ||
+                   isValidExerciseList(d.activity.exercises)))) &&
                (!(d.keys().hasAny(['food'])) || (
                  d.food is map &&
                  d.food.keys().hasOnly(['likes', 'dislikes', 'restrictions', 'intolerances', 'notes']) &&
@@ -196,11 +251,17 @@ service cloud.firestore {
                  isOptionalNumberInRange(d.bodyComposition, 'visceralFat', 1, 59))) &&
                (!(d.keys().hasAny(['foodRecord24h'])) || (
                  d.foodRecord24h is map &&
-                 d.foodRecord24h.keys().hasOnly(['enabled', 'timeOfDay', 'notes']) &&
+                 // `timeOfDay` pasó a ser legado: cada comida de `meals`
+                 // trae su propia hora. Se sigue permitiendo para leer y
+                 // reescribir expedientes capturados antes.
+                 d.foodRecord24h.keys().hasOnly(['enabled', 'timeOfDay', 'notes', 'meals']) &&
                  d.foodRecord24h.enabled is bool &&
-                 d.foodRecord24h.timeOfDay is string &&
-                 d.foodRecord24h.timeOfDay.matches("^\\d{2}:\\d{2}$") &&
-                 isBoundedString(d.foodRecord24h, 'notes', 0, 2000)));
+                 (!(d.foodRecord24h.keys().hasAny(['timeOfDay'])) || (
+                   d.foodRecord24h.timeOfDay is string &&
+                   d.foodRecord24h.timeOfDay.matches("^\\d{2}:\\d{2}$"))) &&
+                 isBoundedString(d.foodRecord24h, 'notes', 0, 2000) &&
+                 (!(d.foodRecord24h.keys().hasAny(['meals'])) ||
+                   isValidMealList(d.foodRecord24h.meals))));
       }
 
       function validPlayerDocument() {
@@ -213,8 +274,15 @@ service cloud.firestore {
             'bodyComposition', 'foodRecord24h',
             'initialWeight', 'initialHeight', 'mealPlan', 'workoutPlan',
             'archived', 'archivedAt', 'createdAt', 'updatedAt',
-            'lastContactAt', 'lastConsultationAt', 'ultimaConsultaAt'
+            'lastContactAt', 'lastConsultationAt', 'ultimaConsultaAt',
+            // Puntero al doc de `body_composition` que es la línea base.
+            // Las altas nuevas dejan de escribir `bodyComposition` e
+            // `initialWeight` en el perfil: el peso y los porcentajes son
+            // mediciones y van a la serie, no a un mapa aparte que después
+            // obliga a leer dos sitios para comparar.
+            'baselineId'
           ]) &&
+          isBoundedString(d, 'baselineId', 1, 64) &&
           isBoundedString(d, 'displayName', 0, 120) &&
           isBoundedString(d, 'nombre', 0, 120) &&
           isValidEmailField(d, 'email') &&
@@ -308,7 +376,11 @@ service cloud.firestore {
           request.resource.data.event.size() <= 300 &&
           request.resource.data.at is timestamp &&
           request.resource.data.actor == request.auth.uid;
-        allow update, delete: if false;
+        // La bitácora es append-only: nadie edita un evento que ya ocurrió.
+        // Sí puede borrarlo el nutriólogo, porque al eliminar un expediente
+        // esta subcolección quedaría huérfana junto a consultations.
+        allow update: if false;
+        allow delete: if isAdmin();
       }
     }
 
@@ -412,13 +484,15 @@ service cloud.firestore {
     match /body_composition/{entryId} {
       function validBodyComposition() {
         let d = request.resource.data;
+        // Todos los campos numéricos son opcionales a propósito: la línea
+        // base que escribe el nutriólogo en el alta no trae edad corporal,
+        // y rellenarla con 0 sería un dato inventado.
         return hasAll(d, ['uID', 'date']) &&
                hasOnly(d, [
                  'uID', 'date', 'weight', 'bmi',
                  'muscleMassPercentage', 'fatMassPercentage',
                  'bodyAge', 'visceralFat'
                ]) &&
-               d.uID == request.auth.uid &&
                d.date is timestamp &&
                isOptionalNumberInRange(d, 'weight', 0, 1000) &&
                isOptionalNumberInRange(d, 'bmi', 0, 100) &&
@@ -430,7 +504,13 @@ service cloud.firestore {
 
       allow read: if isAdmin() ||
         (isAuthenticated() && resource.data.uID == request.auth.uid);
-      allow create: if isAuthenticated() && validBodyComposition();
+      // Un jugador solo puede registrar sus propias mediciones. El
+      // nutriólogo además puede escribir en la serie de un paciente para
+      // dejar la línea base al darlo de alta: sin esto, el expediente
+      // inicial no podría convivir con los pesajes posteriores del
+      // paciente en la misma colección.
+      allow create: if isAuthenticated() && validBodyComposition() &&
+        (request.auth.uid == request.resource.data.uID || isAdmin());
       // Inmutable para el jugador: el histórico no se edita ni se borra desde
       // la app. Sí puede borrarlo el nutriólogo, porque al eliminar un
       // expediente estos registros quedarían huérfanos.

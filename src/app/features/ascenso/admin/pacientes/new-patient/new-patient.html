@@ -204,8 +204,8 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>% MASA MAGRA</mat-label>
-            <input matInput type="number" [formField]="form.masaMagraPorcentaje" placeholder="75.5" />
+            <mat-label>% MASA MUSCULAR</mat-label>
+            <input matInput type="number" [formField]="form.masaMuscularPorcentaje" placeholder="40.5" />
             <span matSuffix class="unit">%</span>
           </mat-form-field>
 
@@ -237,40 +237,100 @@
           ></textarea>
         </mat-form-field>
 
-        <label class="field-label">NIVEL DE ACTIVIDAD</label>
-        <mat-button-toggle-group
-          [formField]="form.nivelActividad"
-          class="toggle-group"
-          aria-label="Nivel de actividad"
-        >
-          @for (option of activityOptions; track option.value) {
-            <mat-button-toggle [value]="option.value">{{ option.label }}</mat-button-toggle>
-          }
-        </mat-button-toggle-group>
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>NIVEL DE ACTIVIDAD</mat-label>
+          <mat-select [formField]="form.nivelActividad">
+            @for (option of activityOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
         <div class="field-row">
           <mat-form-field appearance="outline">
             <mat-label>ACTIVIDAD LABORAL</mat-label>
-            <input matInput type="text" [formField]="form.tipoTrabajo" placeholder="Sedentario, físico..." />
+            <input matInput type="text" [formField]="form.tipoTrabajo" placeholder="Oficina, albañil..." />
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>DÍAS DE EJERCICIO / SEMANA</mat-label>
-            <input matInput type="number" [formField]="form.diasEjercicio" />
+            <mat-label>HORAS DE TRABAJO / DÍA</mat-label>
+            <input matInput type="number" [formField]="form.horasTrabajo" placeholder="8" />
+            <span matSuffix class="unit">h</span>
           </mat-form-field>
         </div>
 
-        <div class="field-row">
-          <mat-form-field appearance="outline">
-            <mat-label>TIPO DE EJERCICIO</mat-label>
-            <input matInput type="text" [formField]="form.tipoEjercicio" placeholder="Pesas, cardio..." />
+        <mat-form-field appearance="outline" fullWidth>
+          <mat-label>DÍAS DE EJERCICIO / SEMANA</mat-label>
+          <input matInput type="number" [formField]="form.diasEjercicio" />
+        </mat-form-field>
+
+        <label class="field-label">RUTINA DE EJERCICIO</label>
+        <p class="field-hint">
+          Cada actividad que hace durante el día y el tiempo que le dedica. El MET sale del
+          catálogo y se guarda en el expediente.
+        </p>
+
+        <div class="repeater-row">
+          <mat-form-field appearance="outline" class="repeater-grow">
+            <mat-label>ACTIVIDAD</mat-label>
+            <mat-select [(value)]="draftActivity">
+              @for (category of metsCatalog; track category.label) {
+                <mat-option [value]="''" disabled>{{ category.label }}</mat-option>
+                @for (activity of category.activities; track activity.label) {
+                  <mat-option [value]="activity.label">
+                    {{ activity.label }} · {{ activity.mets }} METs
+                  </mat-option>
+                }
+              }
+            </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
-            <mat-label>HORARIO HABITUAL</mat-label>
-            <input matInput type="time" [formField]="form.horarioEjercicio" />
+          <mat-form-field appearance="outline" class="repeater-narrow">
+            <mat-label>MIN / DÍA</mat-label>
+            <input
+              matInput
+              type="number"
+              [value]="draftMinutes()"
+              (input)="draftMinutes.set(+$any($event.target).value || 0)"
+            />
           </mat-form-field>
+
+          <button
+            type="button"
+            matIconButton
+            (click)="addExercise()"
+            aria-label="Añadir actividad a la rutina"
+          >
+            <mat-icon>add</mat-icon>
+          </button>
         </div>
+
+        @if (exercises().length) {
+          <ul class="entry-list">
+            @for (entry of exercises(); track $index) {
+              <li class="entry-row">
+                <span class="entry-main">{{ entry.activity }}</span>
+                <span class="entry-meta">{{ entry.minutes }} min · {{ entry.mets }} METs</span>
+                <button
+                  type="button"
+                  matIconButton
+                  class="entry-remove"
+                  (click)="removeExercise($index)"
+                  [attr.aria-label]="'Quitar ' + entry.activity"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              </li>
+            }
+          </ul>
+
+          <div class="routine-summary">
+            <span>TOTAL: {{ totalMinutes() }} MIN / DÍA</span>
+            @if (estimatedKcal() !== null) {
+              <span>≈ {{ estimatedKcal() }} KCAL / DÍA</span>
+            }
+          </div>
+        }
       </div>
 
       <div class="step-actions">
@@ -344,11 +404,93 @@
         </div>
 
         @if (form.registroActivo().value()) {
-          <mat-form-field appearance="outline" fullWidth>
-            <mat-label>HORA EN QUE SUELE LLENARLO</mat-label>
-            <input matInput type="time" [formField]="form.registroHora" />
-            <mat-icon matSuffix>schedule</mat-icon>
-          </mat-form-field>
+          <label class="field-label">QUÉ COME EN EL DÍA</label>
+          <p class="field-hint">
+            Una sección por comida. Dentro de cada una se anotan los alimentos y su porción.
+          </p>
+
+          <div class="meal-list">
+            @for (meal of meals(); track $index; let mealIndex = $index) {
+              <div class="meal-card">
+                <div class="meal-head">
+                  <mat-form-field appearance="outline" class="meal-name">
+                    <mat-label>COMIDA</mat-label>
+                    <input
+                      matInput
+                      type="text"
+                      [value]="meal.name"
+                      (input)="patchMeal(mealIndex, { name: $any($event.target).value })"
+                    />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="meal-time">
+                    <mat-label>HORA</mat-label>
+                    <input
+                      matInput
+                      type="time"
+                      [value]="meal.time ?? ''"
+                      (input)="patchMeal(mealIndex, { time: $any($event.target).value })"
+                    />
+                  </mat-form-field>
+
+                  <button
+                    type="button"
+                    matIconButton
+                    (click)="removeMeal(mealIndex)"
+                    [attr.aria-label]="'Quitar ' + meal.name"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+
+                @for (item of meal.items; track $index; let itemIndex = $index) {
+                  <div class="food-row">
+                    <mat-form-field appearance="outline" class="food-main">
+                      <mat-label>ALIMENTO</mat-label>
+                      <input
+                        matInput
+                        type="text"
+                        [value]="item.food"
+                        placeholder="2 tortillas de maíz"
+                        (input)="patchFoodItem(mealIndex, itemIndex, { food: $any($event.target).value })"
+                      />
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="food-portion">
+                      <mat-label>PORCIÓN</mat-label>
+                      <input
+                        matInput
+                        type="text"
+                        [value]="item.portion"
+                        placeholder="1 plato"
+                        (input)="patchFoodItem(mealIndex, itemIndex, { portion: $any($event.target).value })"
+                      />
+                    </mat-form-field>
+
+                    <button
+                      type="button"
+                      matIconButton
+                      class="entry-remove"
+                      (click)="removeFoodItem(mealIndex, itemIndex)"
+                      aria-label="Quitar alimento"
+                    >
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                }
+
+                <button type="button" class="add-link" (click)="addFoodItem(mealIndex)">
+                  <mat-icon>add</mat-icon>
+                  <span>AÑADIR ALIMENTO</span>
+                </button>
+              </div>
+            }
+          </div>
+
+          <button type="button" class="add-link" (click)="addMeal()">
+            <mat-icon>add</mat-icon>
+            <span>AÑADIR OTRA COMIDA</span>
+          </button>
 
           <mat-form-field appearance="outline" fullWidth>
             <mat-label>INSTRUCCIONES PARA EL REGISTRO</mat-label>

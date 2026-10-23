@@ -3,7 +3,6 @@ import { FormField, form, email, max, min, minLength, required } from '@angular/
 import { Router } from '@angular/router';
 // Material
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
@@ -16,8 +15,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ChipInput } from '@features/ui/chip-input/chip-input';
 import { FullWidthDirective } from '@features/ui/full-width/full-width.directive';
 import { CredentialsDialog } from '@features/ascenso/admin/pacientes/credentials-dialog';
-import { ActivityLevel, PatientGoal, PatientProfile, Sex } from '@data/models/patient/patient-profile';
+import { ActivityLevel, ExerciseEntry, FoodEntry, MealSection, PatientGoal, PatientProfile, Sex, defaultMeals } from '@data/models/patient/patient-profile';
 import { ACTIVITY_OPTIONS, GOAL_OPTIONS, SEX_OPTIONS, ageFromDate, calculateImc, classifyImc} from '@data/models/patient/patient-labels';
+import { METS_CATALOG, MetsActivity, metsFor } from '@data/models/patient/mets-catalog';
 import { PatientsRepository } from '@data/repositories/patients';
 import { ConnectivityService } from '@data/services/connectivity';
 
@@ -27,9 +27,19 @@ const CONDITION_OPTIONS = [
   'Colesterol alto', 'Ninguna',
 ];
 
+/**
+ * Restricciones del paciente.
+ *
+ * OJO con el tope: `isValidTagList` en firestore.rules limita estas listas
+ * a `size() <= 12`. Se amplió ese tope a 24 justamente para poder crecer
+ * aquí sin que marcar muchas opciones deje al guardado sin efecto.
+ */
 const RESTRICTION_OPTIONS = [
-  'Vegetariano', 'Vegano', 'Sin gluten', 'Sin lactosa', 'Halal', 'Kosher', 'Baja en sodio',
-  'Baja en azúcar',
+  'Vegetariano', 'Vegano', 'Pescovegetariano',
+  'Sin gluten', 'Sin lactosa', 'Sin frutos secos', 'Sin cerdo',
+  'Cetogénica', 'Mediterránea', 'Baja en carbohidratos',
+  'Baja en sodio', 'Baja en azúcar',
+  'Flexible', 'Halal', 'Kosher',
 ];
 
 /**
@@ -55,7 +65,6 @@ const RESTRICTION_OPTIONS = [
   imports: [
     FormField,
     MatButtonModule,
-    MatButtonToggleModule,
     MatFormFieldModule,
     MatIcon,
     MatInputModule,
@@ -114,12 +123,11 @@ export class NewPatient {
     expectativa: '',
     nivelActividad: 'sedentario' as ActivityLevel,
     tipoTrabajo: '',
+    horasTrabajo: 0,
     diasEjercicio: 0,
-    tipoEjercicio: '',
-    horarioEjercicio: '',
     // Paso 3 — composición corporal (opcional)
     grasaPorcentaje: null as number | null,
-    masaMagraPorcentaje: null as number | null,
+    masaMuscularPorcentaje: null as number | null,
     grasaVisceral: null as number | null,
     // Paso 4 — alimentos y registro de 24 h
     gusta: [] as string[],
@@ -127,9 +135,19 @@ export class NewPatient {
     restricciones: [] as string[],
     notasAlimentos: '',
     registroActivo: true,
-    registroHora: '08:00',
     registroNotas: '',
   });
+
+  /**
+   * Rutina física y registro de 24 h.
+   *
+   * Viven FUERA de `form()` a propósito: son listas estructuradas
+   * opcionales de forma libre, y meter objetos anidados dentro del schema
+   * solo añadiría complejidad sin aportar validación útil. El resto de
+   * campos sí pasa por `form()` para heredar sus validaciones.
+   */
+  protected readonly exercises = signal<ExerciseEntry[]>([]);
+  protected readonly meals = signal<MealSection[]>(defaultMeals());
 
   /**
    * En Angular 22 `form()` recibe un WritableSignal<TModel> y un schemaFn
@@ -148,18 +166,18 @@ export class NewPatient {
     max(path.talla, 300);
     min(path.pesoMeta, 0);
     max(path.pesoMeta, 1000);
+    min(path.horasTrabajo, 0);
+    max(path.horasTrabajo, 24);
     min(path.diasEjercicio, 0);
     max(path.diasEjercicio, 7);
 
     // Composición corporal: porcentajes 0-100, grasa visceral 1-59.
     min(path.grasaPorcentaje, 0);
     max(path.grasaPorcentaje, 100);
-    min(path.masaMagraPorcentaje, 0);
-    max(path.masaMagraPorcentaje, 100);
+    min(path.masaMuscularPorcentaje, 0);
+    max(path.masaMuscularPorcentaje, 100);
     min(path.grasaVisceral, 1);
     max(path.grasaVisceral, 59);
-
-    minLength(path.registroHora, 5);
   });
 
   /** IMC en vivo a partir de peso (kg) y talla (cm). */
@@ -223,6 +241,107 @@ export class NewPatient {
   }
 
   // ------------------------------------------------------------------
+  // Rutina física (lista con catálogo de METs)
+  // ------------------------------------------------------------------
+  protected readonly metsCatalog = METS_CATALOG;
+
+  /** Actividad preseleccionada en el formulario de alta de ejercicio. */
+  protected readonly draftActivity = signal<string>(METS_CATALOG[0].activities[0].label);
+  protected readonly draftMinutes = signal<number>(30);
+
+  /**
+   * Duración total diaria declarada, en minutos.
+   *
+   * No es un campo capturado: se deriva de la lista para que el nutriólogo
+   * vea de un vistazo cuánta actividad junta describe el paciente.
+   */
+  protected readonly totalMinutes = computed<number>(() =>
+    this.exercises().reduce((total, entry) => total + (entry.minutes || 0), 0)
+  );
+
+  /**
+   * Gasto energético estimado de la rutina declarada, en kcal por día.
+   *
+   * Fórmula clásica: kcal = Σ (METs × horas) × peso (kg).
+   *
+   * Es un ESTIMADO, no un dato medido: sirve para comparar rutinas entre
+   * pacientes, no para prescribir. `null` si falta el peso o no hay
+   * actividad declarada.
+   */
+  protected readonly estimatedKcal = computed<number | null>(() => {
+    const weight = Number(this.form.pesoActual().value());
+    const list = this.exercises();
+    if (!weight || !list.length) return null;
+
+    const metsHours = list.reduce((sum, entry) => sum + entry.mets * (entry.minutes || 0), 0) / 60;
+    return Math.round(metsHours * weight);
+  });
+
+  protected addExercise(): void {
+    const activity = this.draftActivity();
+    const minutes = Number(this.draftMinutes()) || 0;
+    if (!activity || minutes <= 0) return;
+
+    this.exercises.update((list) => [...list, { activity, minutes, mets: metsFor(activity) ?? 0 }]);
+  }
+
+  protected removeExercise(index: number): void {
+    this.exercises.update((list) => list.filter((_, i) => i !== index));
+  }
+
+  // ------------------------------------------------------------------
+  // Registro alimentario de 24 h (secciones de comida)
+  // ------------------------------------------------------------------
+  protected addMeal(): void {
+    this.meals.update((list) => [
+      ...list,
+      { name: `Comida ${list.length + 1}`, time: '', items: [] },
+    ]);
+  }
+
+  protected removeMeal(index: number): void {
+    this.meals.update((list) => list.filter((_, i) => i !== index));
+  }
+
+  /** Parcha una sección de comida concreta (nombre, hora o sus alimento). */
+  protected patchMeal(index: number, patch: Partial<MealSection>): void {
+    this.meals.update((list) =>
+      list.map((meal, i) => (i === index ? { ...meal, ...patch } : meal))
+    );
+  }
+
+  protected addFoodItem(mealIndex: number): void {
+    this.meals.update((list) =>
+      list.map((meal, i) =>
+        i === mealIndex ? { ...meal, items: [...meal.items, { food: '', portion: '' }] } : meal
+      )
+    );
+  }
+
+  protected removeFoodItem(mealIndex: number, itemIndex: number): void {
+    this.meals.update((list) =>
+      list.map((meal, i) =>
+        i === mealIndex
+          ? { ...meal, items: meal.items.filter((_, j) => j !== itemIndex) }
+          : meal
+      )
+    );
+  }
+
+  protected patchFoodItem(mealIndex: number, itemIndex: number, patch: Partial<FoodEntry>): void {
+    this.meals.update((list) =>
+      list.map((meal, i) =>
+        i === mealIndex
+          ? {
+              ...meal,
+              items: meal.items.map((item, j) => (j === itemIndex ? { ...item, ...patch } : item)),
+            }
+          : meal
+      )
+    );
+  }
+
+  // ------------------------------------------------------------------
   // Navegación
   // ------------------------------------------------------------------
   /** Vuelve al listado sin registrar nada. */
@@ -273,10 +392,14 @@ export class NewPatient {
           { duration: 7000 }
         );
       } else {
+        // Un fallo aquí no tumba el alta, pero deja al paciente sin punto
+        // de partida para comparar, así que se dice explícitamente.
+        const baseFalta = created.baselineSaved === false;
         this.snackBar.open(
-          created.emailSent === false ? 'Paciente registrado (el correo NO se envió).' : 'Paciente registrado.',
+          (created.emailSent === false ? 'Paciente registrado (el correo NO se envió).' : 'Paciente registrado.') +
+            (baseFalta ? ' La medición inicial NO se guardó en la serie.' : ''),
           'OK',
-          { duration: 3000 }
+          { duration: baseFalta ? 7000 : 3000 }
         );
       }
 
@@ -311,6 +434,42 @@ export class NewPatient {
     if (this.form.nombre().invalid() || this.form.correo().invalid()) {
       stepper.selectedIndex = 0;
     }
+  }
+
+  /**
+   * Rutina sin filas incompletas.
+   *
+   * El formulario permite añadir una actividad con minutos en cero, así
+   * que aquí se descarta lo que no aporte antes de escribirlo en Firestore
+   * (y de pasarlo por la regla `isValidExerciseList`).
+   */
+  private sanitizedExercises(): ExerciseEntry[] {
+    return this.exercises()
+      .filter((entry) => entry.activity.trim() && entry.minutes > 0)
+      .map((entry) => ({
+        activity: entry.activity.trim(),
+        minutes: Number(entry.minutes),
+        mets: entry.mets,
+      }));
+  }
+
+  /**
+   * Comidas del registro de 24 h sin renglones vacíos.
+   *
+   * Se descartan los alimentos sin nombre y las comidas que terminan sin
+   * ningún alimento ni nombre propio. Si el paciente dejó todo en blanco,
+   * el registro queda como `meals: []` en lugar de tres secciones vacías.
+   */
+  private sanitizedMeals(): MealSection[] {
+    return this.meals()
+      .map((meal) => ({
+        name: meal.name.trim(),
+        time: meal.time?.trim() || undefined,
+        items: meal.items
+          .filter((item) => item.food.trim())
+          .map((item) => ({ food: item.food.trim(), portion: item.portion.trim() })),
+      }))
+      .filter((meal) => meal.items.length > 0);
   }
 
   /** Traduce el formulario al expediente que se guarda. */
@@ -348,9 +507,9 @@ export class NewPatient {
       activity: {
         level: this.form.nivelActividad().value(),
         jobType: this.form.tipoTrabajo().value().trim(),
+        jobHours: this.form.horasTrabajo().value() ? Number(this.form.horasTrabajo().value()) : undefined,
         exerciseDays: Number(this.form.diasEjercicio().value()) || 0,
-        exerciseType: this.form.tipoEjercicio().value().trim(),
-        routineTime: this.form.horarioEjercicio().value() || undefined,
+        exercises: this.sanitizedExercises(),
       },
 
       food: {
@@ -363,13 +522,13 @@ export class NewPatient {
 
       bodyComposition: {
         fatPercentage: this.form.grasaPorcentaje().value() ?? undefined,
-        leanMassPercentage: this.form.masaMagraPorcentaje().value() ?? undefined,
+        muscleMassPercentage: this.form.masaMuscularPorcentaje().value() ?? undefined,
         visceralFat: this.form.grasaVisceral().value() ?? undefined,
       },
 
       foodRecord24h: {
         enabled: this.form.registroActivo().value(),
-        timeOfDay: this.form.registroHora().value() || '08:00',
+        meals: this.sanitizedMeals(),
         notes: this.form.registroNotas().value().trim() || undefined,
       },
 

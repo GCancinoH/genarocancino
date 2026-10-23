@@ -1,6 +1,7 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { FormsModule } from '@angular/forms';
 import { form, FormField } from '@angular/forms/signals';
 import { firstValueFrom } from 'rxjs';
@@ -24,7 +25,8 @@ import { WorkoutDay, Exercise } from 'src/app/data/models/player/workout-plan';
 import { waLink, welcomeMessage } from '@data/services/whatsapp';
 import { ConfirmDeleteDialog } from '@features/ascenso/admin/pacientes/confirm-delete-dialog';
 import { PatientsRepository } from '@data/repositories/patients';
-import { PatientProfile } from '@data/models/patient/patient-profile';
+import { ExerciseEntry, MealSection, PatientProfile } from '@data/models/patient/patient-profile';
+import { BodyCompositionModel } from '@data/models/body-composition';
 import {
   ACTIVITY_LABELS,
   GOAL_LABELS,
@@ -60,6 +62,7 @@ export class PlayerEditComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly adminRepository = inject(AdminRepository);
   private readonly patients = inject(PatientsRepository);
+  private readonly firestore = inject(Firestore);
   private readonly location = inject(Location);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
@@ -86,16 +89,78 @@ export class PlayerEditComponent implements OnInit {
     this.patients.patientByUid(this.uid())
   );
 
+  /**
+   * Medición inicial leída de `body_composition/{baselineId}`.
+   *
+   * Las altas nuevas dejan el peso y los porcentajes ahí, en la misma
+   * colección donde el paciente registra sus pesajes, para que comparar
+   * contra el punto de partida no obligue a leer dos sitios. Los
+   * expedientes antiguos no tienen `baselineId`: su dato sigue dentro del
+   * perfil, y por eso las lecturas de abajo caen al mapa del perfil.
+   */
+  protected readonly baseline = signal<BodyCompositionModel | null>(null);
+
+  /** Peso inicial: del doc de línea base si existe, si no, del perfil. */
+  protected readonly baseWeight = computed<number | undefined>(
+    () => this.baseline()?.weight ?? this.clinical()?.initialWeight
+  );
+
+  protected readonly baseFat = computed<number | undefined>(
+    () =>
+      this.baseline()?.fatMassPercentage ??
+      this.clinical()?.bodyComposition?.fatPercentage
+  );
+
+  protected readonly baseVisceral = computed<number | undefined>(
+    () =>
+      this.baseline()?.visceralFat ??
+      this.clinical()?.bodyComposition?.visceralFat
+  );
+
+  /**
+   * % de masa, con la etiqueta que le corresponde al origen.
+   *
+   * No se pueden mostrar bajo un mismo rótulo: la masa magra es todo lo
+   * que no es grasa (músculo, hueso, agua, órganos) y la muscular es solo
+   * músculo. Los expedientes que traen `muscleMassPercentage` midieron una
+   * cosa; los legados, la otra.
+   */
+  protected readonly baseMassLabel = computed<string>(() =>
+    this.baseline()?.muscleMassPercentage != null ||
+    this.clinical()?.bodyComposition?.muscleMassPercentage != null
+      ? '% MASA MUSCULAR'
+      : '% MASA MAGRA'
+  );
+
+  protected readonly baseMass = computed<number | undefined>(
+    () =>
+      this.baseline()?.muscleMassPercentage ??
+      this.clinical()?.bodyComposition?.muscleMassPercentage ??
+      this.clinical()?.bodyComposition?.leanMassPercentage
+  );
+
   /** IMC de la captura inicial (peso kg / talla cm). */
   protected readonly clinicalImc = computed<number | null>(() => {
     const p = this.clinical();
-    return p ? calculateImc(p.initialWeight, p.initialHeight) : null;
+    return p ? calculateImc(this.baseWeight(), p.initialHeight) : null;
   });
 
   /** Clasificación OMS del IMC inicial. */
   protected readonly clinicalImcLabel = computed<string | null>(() =>
     classifyImc(this.clinicalImc())
   );
+
+  private async loadBaseline(id: string): Promise<void> {
+    try {
+      const snap = await getDoc(doc(this.firestore, 'body_composition', id));
+      // Solo interesan los números de la medición; `date` vuelve como
+      // Timestamp y esta vista no lo muestra, así que se deja tal cual.
+      this.baseline.set(snap.exists() ? (snap.data() as BodyCompositionModel) : null);
+    } catch (error) {
+      console.warn('[PlayerEdit] No se pudo leer la línea base', error);
+      this.baseline.set(null);
+    }
+  }
 
   /** Dato de captura inicial presente, o false si el expediente quedó vacío. */
   protected readonly hasClinicalData = computed<boolean>(() => {
@@ -127,6 +192,24 @@ export class PlayerEditComponent implements OnInit {
     () => this.clinical()?.food?.restrictions ?? []
   );
 
+  /**
+   * Rutina declarada por actividad.
+   *
+   * Vacío en expedientes capturados antes de que existiera el catálogo de
+   * METs: esos guardan la descripción libre en `exerciseType`, que el
+   * template muestra como respaldo.
+   */
+  protected readonly exerciseEntries = computed<ExerciseEntry[]>(() => {
+    const list = this.clinical()?.activity?.exercises;
+    return Array.isArray(list) ? list : [];
+  });
+
+  /** Comidas del registro de 24 h; vacío en expedientes antiguos. */
+  protected readonly mealSections = computed<MealSection[]>(() => {
+    const list = this.clinical()?.foodRecord24h?.meals;
+    return Array.isArray(list) ? list : [];
+  });
+
   // Signal Form for general info
   playerForm = form(signal({
     displayName: '',
@@ -148,6 +231,17 @@ export class PlayerEditComponent implements OnInit {
     // Arranca la suscripción offline-first a `players`: el espejo local y la
     // caché persistente de Firestore alimentan la pestaña clínica.
     this.patients.start();
+
+    // El expediente llega del espejo local, que puede tardar en poblar la
+    // señal, así que la línea base se busca en cuanto aparezca el puntero.
+    effect(() => {
+      const id = this.clinical()?.baselineId;
+      if (!id) {
+        this.baseline.set(null);
+        return;
+      }
+      void this.loadBaseline(id);
+    });
 
     const uidParam = this.route.snapshot.paramMap.get('uid');
     if (!uidParam) {

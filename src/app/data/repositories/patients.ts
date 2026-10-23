@@ -3,6 +3,8 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Auth } from '@angular/fire/auth';
 import {
   Firestore,
+  Timestamp,
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -22,6 +24,7 @@ import {
   PatientDraft,
   PatientProfile,
 } from '@data/models/patient/patient-profile';
+import { calculateImc } from '@data/models/patient/patient-labels';
 import { ConnectivityService } from '@data/services/connectivity';
 import { timestampToMillis, toPlain } from '@data/services/firestore-plain';
 
@@ -40,6 +43,15 @@ export interface CreatePatientResult {
    * false => la cuenta existe pero el expediente quedó pendiente.
    */
   profileSaved?: boolean;
+  /**
+   * Si la medición inicial quedó escrita en `body_composition`.
+   *
+   * `false` => se intentó y falló: el alta está en pie pero quedó sin
+   * línea base para comparar.
+   * `undefined` => no había medición que guardar (el peso y los
+   * porcentajes son opcionales en el alta).
+   */
+  baselineSaved?: boolean;
 }
 
 interface PlayerDocSnapshot extends Partial<PatientProfile> {
@@ -435,6 +447,44 @@ export class PatientsRepository {
    * Requiere conexión: el hash de la contraseña y el correo los resuelve el
    * servidor. Sin señal, usar `saveDraft()` + `flushDrafts()`.
    */
+  /**
+   * Escribe la medición inicial del paciente en `body_composition`.
+   *
+   * Es la misma colección a la que el paciente registra sus pesajes desde
+   * el dashboard, así que la línea base convive con el resto de la serie y
+   * comparar contra el punto de partida no obliga a leer dos sitios.
+   *
+   * Solo se envían los campos que el alta capturó de verdad: `bodyAge`, por
+   * ejemplo, no se pregunta en el alta y rellenarlo con 0 sería un dato
+   * inventado. Devuelve el id del doc creado, o `null` si no hay nada que
+   * guardar.
+   */
+  private async saveBaseline(
+    uid: string,
+    profile: Omit<PatientProfile, 'uid'>
+  ): Promise<string | null> {
+    const weight = profile.initialWeight ?? null;
+    const payload: Record<string, unknown> = { uID: uid, date: Timestamp.now() };
+
+    if (weight) payload['weight'] = weight;
+
+    // El IMC se deriva en vez de preguntarlo: el alta sí tiene la talla, y
+    // así no depende de que alguien lo calcule a mano.
+    const bmi = calculateImc(weight ?? undefined, profile.initialHeight);
+    if (bmi) payload['bmi'] = bmi;
+
+    const bc = profile.bodyComposition;
+    if (bc?.fatPercentage != null) payload['fatMassPercentage'] = bc.fatPercentage;
+    if (bc?.muscleMassPercentage != null) payload['muscleMassPercentage'] = bc.muscleMassPercentage;
+    if (bc?.visceralFat != null) payload['visceralFat'] = bc.visceralFat;
+
+    // Sin peso ni porcentajes no hay medición que registrar.
+    if (Object.keys(payload).length <= 2) return null;
+
+    const ref = await addDoc(collection(this.firestore, 'body_composition'), payload);
+    return ref.id;
+  }
+
   async createPatient(profile: Omit<PatientProfile, 'uid'>): Promise<Resource<CreatePatientResult>> {
     if (!this.connectivity.online()) {
       return resource.error('Sin conexión: guarda el borrador y se creará al volver la señal.');
@@ -470,14 +520,40 @@ export class PatientsRepository {
       );
     }
 
-    // 2) Encima va el expediente clínico. Si esto falla, la cuenta YA EXISTE
+    // 2) La medición inicial va a la serie `body_composition`, que es donde
+    //    el paciente después registra sus pesajes. Si falla, el alta sigue
+    //    en pie pero queda sin línea base, así que se reporta aparte en vez
+    //    de tumbar todo.
+    let baselineId: string | undefined;
+    try {
+      baselineId = (await this.saveBaseline(response.uid, profile)) ?? undefined;
+      // `undefined` aquí significa "no había medición que guardar", que no
+      // es un error: el peso y los porcentajes son opcionales. Solo se
+      // marca false si se intentó y no se pudo.
+      response.baselineSaved = baselineId !== undefined ? true : undefined;
+    } catch (error) {
+      console.error('[PatientsRepo] No se pudo escribir la línea base', error);
+      response.baselineSaved = false;
+    }
+
+    // 3) Encima va el expediente clínico. Si esto falla, la cuenta YA EXISTE
     //    y el correo YA SALIÓ: repetir el alta devolvería "email already
     //    exists", así que se marca como pendiente en vez de reportar un
     //    error genérico que invite a reintentar la creación completa.
     try {
       await setDoc(
         doc(this.firestore, 'players', response.uid),
-        toPlain({ ...profile, createdAt: Date.now(), updatedAt: Date.now() }),
+        toPlain({
+          ...profile,
+          // El peso y los porcentajes ya quedaron en `body_composition`;
+          // no se duplican en el perfil. `toPlain` omite las claves con
+          // undefined, así que Firestore nunca las ve.
+          initialWeight: undefined,
+          bodyComposition: undefined,
+          baselineId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }),
         { merge: true }
       );
       response.profileSaved = true;

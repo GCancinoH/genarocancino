@@ -257,7 +257,7 @@
                 <div class="info-grid">
                   <div class="info-cell">
                     <span class="info-label">PESO INICIAL</span>
-                    <span class="info-value">{{ fmtNum(clinical()?.initialWeight) }} <em class="unit">kg</em></span>
+                    <span class="info-value">{{ fmtNum(baseWeight()) }} <em class="unit">kg</em></span>
                   </div>
                   <div class="info-cell">
                     <span class="info-label">TALLA</span>
@@ -279,19 +279,19 @@
                   </div>
                 </div>
 
-                @if (clinical()?.bodyComposition; as bc) {
+                @if (baseFat() != null || baseMass() != null || baseVisceral() != null) {
                   <div class="info-grid">
                     <div class="info-cell">
                       <span class="info-label">% GRASA</span>
-                      <span class="info-value">{{ fmtNum(bc.fatPercentage, ' %') }}</span>
+                      <span class="info-value">{{ fmtNum(baseFat(), ' %') }}</span>
                     </div>
                     <div class="info-cell">
-                      <span class="info-label">% MASA MAGRA</span>
-                      <span class="info-value">{{ fmtNum(bc.leanMassPercentage, ' %') }}</span>
+                      <span class="info-label">{{ baseMassLabel() }}</span>
+                      <span class="info-value">{{ fmtNum(baseMass(), ' %') }}</span>
                     </div>
                     <div class="info-cell">
                       <span class="info-label">GRASA VISCERAL</span>
-                      <span class="info-value">{{ fmtNum(bc.visceralFat) }}</span>
+                      <span class="info-value">{{ fmtNum(baseVisceral()) }}</span>
                     </div>
                   </div>
                 }
@@ -384,17 +384,34 @@
                     <span class="info-value">{{ clinical()?.activity?.jobType || '—' }}</span>
                   </div>
                   <div class="info-cell">
+                    <span class="info-label">HORAS DE TRABAJO / DÍA</span>
+                    <span class="info-value">{{ clinical()?.activity?.jobHours ?? '—' }}</span>
+                  </div>
+                  <div class="info-cell">
                     <span class="info-label">DÍAS DE EJERCICIO / SEMANA</span>
                     <span class="info-value">{{ clinical()?.activity?.exerciseDays ?? '—' }}</span>
                   </div>
-                  <div class="info-cell">
-                    <span class="info-label">TIPO DE EJERCICIO</span>
-                    <span class="info-value">{{ clinical()?.activity?.exerciseType || '—' }}</span>
-                  </div>
-                  <div class="info-cell">
-                    <span class="info-label">HORARIO HABITUAL</span>
-                    <span class="info-value">{{ clinical()?.activity?.routineTime || '—' }}</span>
-                  </div>
+                </div>
+
+                <div class="info-block">
+                  <span class="info-label">RUTINA DE EJERCICIO</span>
+                  @if (exerciseEntries().length) {
+                    <ul class="routine-list">
+                      @for (entry of exerciseEntries(); track $index) {
+                        <li class="routine-item">
+                          <span class="routine-name">{{ entry.activity }}</span>
+                          <span class="routine-meta">{{ entry.minutes }} min · {{ entry.mets }} METs</span>
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <span class="info-text">{{ clinical()?.activity?.exerciseType || '—' }}</span>
+                  }
+                  @if (clinical()?.activity?.routineTime) {
+                    <span class="info-text muted">
+                      Horario habitual: {{ clinical()?.activity?.routineTime }}
+                    </span>
+                  }
                 </div>
               </mat-card-content>
             </mat-card>
@@ -460,11 +477,37 @@
                       </span>
                     </span>
                   </div>
-                  <div class="info-cell">
-                    <span class="info-label">HORA HABITUAL</span>
-                    <span class="info-value">{{ clinical()?.foodRecord24h?.timeOfDay || '—' }}</span>
-                  </div>
+                  @if (!mealSections().length && clinical()?.foodRecord24h?.timeOfDay) {
+                    <div class="info-cell">
+                      <span class="info-label">HORA HABITUAL</span>
+                      <span class="info-value">{{ clinical()?.foodRecord24h?.timeOfDay }}</span>
+                    </div>
+                  }
                 </div>
+
+                @if (mealSections().length) {
+                  <div class="info-block">
+                    <span class="info-label">QUÉ COME EN EL DÍA</span>
+                    @for (meal of mealSections(); track $index) {
+                      <div class="meal-block">
+                        <span class="info-label">
+                          {{ meal.name }}{{ meal.time ? ' · ' + meal.time : '' }}
+                        </span>
+                        @if (meal.items.length) {
+                          @for (item of meal.items; track $index) {
+                            <div class="routine-item">
+                              <span class="routine-name">{{ item.food }}</span>
+                              <span class="routine-meta">{{ item.portion || '—' }}</span>
+                            </div>
+                          }
+                        } @else {
+                          <span class="info-text muted">—</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+
                 <div class="info-block">
                   <span class="info-label">INSTRUCCIONES</span>
                   <span class="info-text">{{ clinical()?.foodRecord24h?.notes || '—' }}</span>

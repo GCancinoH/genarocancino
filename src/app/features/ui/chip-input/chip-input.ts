@@ -35,18 +35,33 @@ import { MatIcon } from '@angular/material/icon';
     </div>
   `,
   styles: `
+    /*
+     * El contenedor imita la geometría del campo con contorno de Material
+     * (min-height, radio y padding de 16 px, borde tomado de los tokens del
+     * tema) para que Intolerancias no se lea como un control ajeno al
+     * resto del formulario.
+     *
+     * El tamaño de fuente va en 1rem porque es el de
+     * \`--mat-sys-body-large-size\`, que es el que Material aplica dentro de
+     * un \`mat-form-field\`; antes acá era 0.85rem y se notaba.
+     */
     .chip-box {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      min-height: 48px;
-      padding: 8px 12px;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      min-height: 56px;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--mat-sys-outline-variant, #c4c6d0);
       border-radius: 4px;
       cursor: text;
+      font-size: 1rem;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .chip-box:hover {
+      border-color: var(--mat-sys-outline, #74777f);
     }
 
     .chip-box:focus-within {
@@ -95,8 +110,10 @@ import { MatIcon } from '@angular/material/icon';
       border: none;
       outline: none;
       color: #fff;
+      /* Hereda de .chip-box, así que coincide con el resto de los inputs
+       * sin repetir el tamaño acá. */
       font-family: inherit;
-      font-size: 0.85rem;
+      font-size: inherit;
       padding: 6px 0;
     }
 

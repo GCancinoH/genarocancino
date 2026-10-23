@@ -190,25 +190,33 @@
 }
 
 /*
- * Material pinta el valor del input con --mat-form-field-input-text-color,
- * que en tema oscuro es gris. Aquí se fuerza blanco para que al escribir
- * el texto se lea con contraste. El placeholder sí se queda gris.
+ * Material pinta el valor del input leyendo un token por variante. Aquí
+ * todo usa `appearance="outline"`, así que el que aplica es el de outlined.
+ *
+ * Se fija el TOKEN y no las clases del DOM, porque así arregla inputs y
+ * textareas de una sola vez. El selector anterior perseguía clases y apuntaba
+ * a `textarea.mat-mdc-textarea-wrapper`, que es el contenedor, no el texto:
+ * por eso los seis textareas del formulario (alergias, fármacos,
+ * antecedentes familiares, notas, expectativa y notas alimentarias)
+ * seguían grises mientras los inputs sí salían blancos.
+ *
+ * El placeholder sí se queda gris, a propósito: no debe confundirse con
+ * contenido capturado.
  */
-:host ::ng-deep .intake .mat-mdc-form-field input.mat-mdc-input-element,
-:host ::ng-deep .intake .mat-mdc-form-field textarea.mat-mdc-textarea-wrapper,
-:host ::ng-deep .intake .mat-mdc-select-value,
-:host ::ng-deep .intake .mat-mdc-select-min-line {
-  color: #fff;
+:host ::ng-deep .intake .mat-mdc-form-field {
+  --mat-form-field-outlined-input-text-color: #fff;
+  /*
+   * El valor elegido del select NO lo pinta el token de arriba: el
+   * trigger del select tiene el suyo propio. Sin este, los desplegables
+   * (objetivo principal, nivel de actividad, actividad) quedan grises
+   * aunque el input del mismo form-field salga blanco.
+   */
+  --mat-select-enabled-trigger-text-color: #fff;
 }
 
-:host ::ng-deep .intake .mat-mdc-form-field input.mat-mdc-input-element::placeholder {
+:host ::ng-deep .intake .mat-mdc-form-field input.mat-mdc-input-element::placeholder,
+:host ::ng-deep .intake .mat-mdc-form-field textarea::placeholder {
   color: rgba(255, 255, 255, 0.35);
-}
-
-.toggle-group {
-  margin-bottom: 12px;
-  display: flex;
-  flex-wrap: wrap;
 }
 
 .reminder-box {
@@ -277,6 +285,162 @@
   box-shadow: 0 0 8px rgba(37, 117, 252, 0.8);
 }
 
+.field-hint {
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.45);
+  margin: -2px 0 12px;
+}
+
+/* --- Repetidor de rutina (actividad + minutos) ---------------------- */
+
+.repeater-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.repeater-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.repeater-narrow {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+/* --- Listas añadidas (rutina y alimento) ---------------------------- */
+
+.entry-list {
+  list-style: none;
+  margin: 4px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.entry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.entry-main {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-meta {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Los botones de icono heredan el color del tema claro y quedan casi
+ * invisibles sobre este fondo; se fija uno acorde a la interfaz. */
+.entry-remove,
+.repeater-row mat-icon-button,
+.repeater-row [matIconButton] {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.routine-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: rgba(37, 117, 252, 0.1);
+  border: 1px solid rgba(37, 117, 252, 0.35);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: rgba(37, 117, 252, 0.95);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Registro de 24 h por comidas ----------------------------------- */
+
+.meal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.meal-card {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.meal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.meal-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.meal-time {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.food-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.food-main {
+  flex: 2;
+  min-width: 0;
+}
+
+.food-portion {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #2575fc;
+}
+
+.add-link mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
 .step-actions {
   display: flex;
   justify-content: right;
@@ -303,6 +467,25 @@
 
   .field-row mat-form-field {
     width: 100%;
+  }
+
+  .repeater-narrow,
+  .meal-time {
+    width: 100%;
+  }
+
+  .repeater-row,
+  .meal-head,
+  .food-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* En columna el botón de quitar queda suelto al fondo; se alinea a la
+   * derecha para que siga leyéndose como acción de la fila. */
+  .meal-head mat-icon-button,
+  .food-row mat-icon-button {
+    align-self: flex-end;
   }
 
   .step-actions button {
