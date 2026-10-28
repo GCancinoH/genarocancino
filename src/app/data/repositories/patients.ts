@@ -26,7 +26,7 @@ import {
 } from '@data/models/patient/patient-profile';
 import { calculateImc } from '@data/models/patient/patient-labels';
 import { ConnectivityService } from '@data/services/connectivity';
-import { timestampToMillis, toPlain } from '@data/services/firestore-plain';
+import { timestampToMillis, toFirestore, toPlain } from '@data/services/firestore-plain';
 
 export interface CreatePatientResult {
   uid: string;
@@ -311,7 +311,7 @@ export class PatientsRepository {
     changes: Partial<Omit<PatientProfile, 'uid'>>
   ): Promise<Resource<void>> {
     try {
-      const payload = toPlain({ ...changes, updatedAt: Date.now() }) as Record<string, unknown>;
+      const payload = toFirestore({ ...changes, updatedAt: Date.now() }) as Record<string, unknown>;
       await setDoc(doc(this.firestore, 'players', uid), payload, { merge: true });
 
       // Espejo optimista para que la UI no espere al snapshot.
@@ -342,8 +342,8 @@ export class PatientsRepository {
    *
    * Firestore NO borra las subcolecciones de un documento al borrarlo, así
    * que hay que recogerlas a mano, igual que las referencias sueltas que este
-   * paciente deja en `appointments`, `body_composition`, `sleep` y
-   * `player_rewards`.
+   * paciente deja en `appointments`, `body_composition`, `sleep`,
+   * `player_rewards` y `meal_plans`.
    *
    * El paso final —la cuenta de Auth— pasa por el backend, porque desde el
    * cliente no se puede borrar la cuenta de otro usuario. Va separado: si
@@ -360,6 +360,7 @@ export class PatientsRepository {
       await this.deleteByField('appointments', 'patientUid', uid);
       await this.deleteByField('body_composition', 'uID', uid);
       await this.deleteByField('sleep', 'uID', uid);
+      await this.deleteByField('meal_plans', 'uID', uid);
 
       // Firestore no falla al borrar un documento inexistente.
       await deleteDoc(doc(this.firestore, 'player_rewards', uid));
@@ -543,7 +544,7 @@ export class PatientsRepository {
     try {
       await setDoc(
         doc(this.firestore, 'players', response.uid),
-        toPlain({
+        toFirestore({
           ...profile,
           // El peso y los porcentajes ya quedaron en `body_composition`;
           // no se duplican en el perfil. `toPlain` omite las claves con

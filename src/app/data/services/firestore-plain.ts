@@ -26,26 +26,74 @@ export function timestampToMillis(value: unknown): number | undefined {
 
 /** Normaliza cualquier snapshot/documento de Firestore a datos planos. */
 export function toPlain<T>(value: T): T {
-  return normalize(value) as T;
+  return normalize(value, true) as T;
 }
 
-function normalize(value: unknown): unknown {
+/**
+ * Campos que las reglas declaran como `timestamp`.
+ *
+ * Replica la lista de `firestore.rules` para `players`: son las fechas que el
+ * servidor exige de ese tipo. Si se cambia una regla, hay que cambiarla aquí.
+ */
+const TIMESTAMP_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'archivedAt',
+  'lastContactAt',
+  'lastConsultationAt',
+  'ultimaConsultaAt',
+] as const;
+
+/**
+ * Normaliza un objeto para **enviarlo a Firestore**.
+ *
+ * Hace lo mismo que `toPlain` en lo que importa para el SDK —descarta las
+ * claves con `undefined`, sin lo cual `setDoc()` lanza "Unsupported field
+ * value: undefined"—, pero **no aplana las fechas**: `Date` y `Timestamp`
+ * sobreviven al recorrido.
+ *
+ * Además normaliza a `Timestamp` los campos de `TIMESTAMP_FIELDS`, sea que
+ * vengan como epoch millis o como `Date`. Es el arreglo de fondo de un bug:
+ * los modelos guardan las fechas en número porque así sobrevive el espejo
+ * IndexedDB, pero las reglas las exigen de tipo `timestamp`, y un número se
+ * rechaza con **403 PERMISSION_DENIED**. `toPlain` aplanaba las fechas y por
+ * eso quien escribía con ella perdía la escritura en silencio.
+ *
+ * El espejo local sigue recibiendo números por `toPlain` / la ruta de lectura.
+ */
+export function toFirestore<T>(value: T): T {
+  const out = normalize(value, false) as Record<string, unknown>;
+  for (const field of TIMESTAMP_FIELDS) {
+    const stored = out[field];
+    if (typeof stored === 'number') out[field] = Timestamp.fromMillis(stored);
+    else if (stored instanceof Date) out[field] = Timestamp.fromDate(stored);
+  }
+  return out as T;
+}
+
+function normalize(value: unknown, flattenDates: boolean): unknown {
   if (value == null) return value;
 
-  if (value instanceof Timestamp) return value.toMillis();
+  // En el camino a Firestore se conservan tal cual; en el del espejo se
+  // aplana a millis porque structured clone pierde el prototipo de Timestamp.
+  if (!flattenDates && value instanceof Timestamp) return value;
+  if (!flattenDates && value instanceof Date) return value;
 
-  if (value instanceof Date) return value.getTime();
+  if (flattenDates && value instanceof Timestamp) return value.toMillis();
+
+  if (flattenDates && value instanceof Date) return value.getTime();
 
   // Firestore rechaza `undefined` dentro de un array, así que se convierte a
   // null para no alterar los índices ni la longitud.
-  if (Array.isArray(value)) return value.map((item) => (item === undefined ? null : normalize(item)));
+  if (Array.isArray(value))
+    return value.map((item) => (item === undefined ? null : normalize(item, flattenDates)));
 
   if (typeof value === 'object') {
     // Snapshot de documento
     const maybeSnapshot = value as { data?: () => unknown; exists?: () => boolean };
     if (typeof maybeSnapshot.data === 'function' && typeof maybeSnapshot.exists === 'function') {
       const doc = value as { exists: () => boolean; data: () => unknown };
-      return doc.exists() ? normalize(doc.data()) : null;
+      return doc.exists() ? normalize(doc.data(), flattenDates) : null;
     }
 
     const out: Record<string, unknown> = {};
@@ -56,7 +104,7 @@ function normalize(value: unknown): unknown {
       // Se omite la clave entera para que Firestore solo vea los campos con
       // dato real.
       if (item === undefined) continue;
-      out[key] = normalize(item);
+      out[key] = normalize(item, flattenDates);
     }
     return out;
   }

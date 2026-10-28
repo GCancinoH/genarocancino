@@ -1,5 +1,5 @@
 import { Timestamp } from '@angular/fire/firestore';
-import { timestampToMillis, toPlain } from './firestore-plain';
+import { timestampToMillis, toPlain, toFirestore } from './firestore-plain';
 
 describe('firestore-plain', () => {
   describe('toPlain', () => {
@@ -56,6 +56,78 @@ describe('firestore-plain', () => {
     it('devuelve null tal cual', () => {
       expect(toPlain(null)).toBeNull();
       expect(toPlain(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('toFirestore', () => {
+    /**
+     * Regresión del bug de guardado: las reglas declaran `createdAt`,
+     * `updatedAt`, `archivedAt` y `lastContactAt` como `timestamp`, y un
+     * número en un campo de ese tipo se rechaza con 403 PERMISSION_DENIED.
+     * Los modelos guardan las fechas en epoch millis porque así sobrevive el
+     * espejo IndexedDB, así que al escribir a Firestore hay que devolverlas
+     * como `Timestamp`.
+     */
+    it('convierte las fechas epoch millis a Timestamp', () => {
+      const millis = 1_700_000_000_000;
+      const result = toFirestore({
+        createdAt: millis,
+        updatedAt: millis,
+        archivedAt: millis,
+        lastContactAt: millis,
+      }) as any;
+
+      for (const field of ['createdAt', 'updatedAt', 'archivedAt', 'lastContactAt']) {
+        expect(result[field]).toBeInstanceOf(Timestamp);
+        expect(result[field].toMillis()).toBe(millis);
+      }
+    });
+
+    it('no toca los números que no son fechas', () => {
+      const result = toFirestore({
+        initialWeight: 70.5,
+        exerciseDays: 3,
+        updatedAt: 1_700_000_000_000,
+      }) as any;
+
+      expect(result.initialWeight).toBe(70.5);
+      expect(result.exerciseDays).toBe(3);
+      expect(result.updatedAt).toBeInstanceOf(Timestamp);
+    });
+
+    it('conserva un Timestamp y normaliza un Date', () => {
+      const millis = 1_700_000_000_000;
+      const ts = Timestamp.fromMillis(millis);
+      const result = toFirestore({ createdAt: ts, updatedAt: new Date(millis) }) as any;
+
+      expect(result.createdAt).toBe(ts); // misma instancia, sin reconvertir
+      // Un Date también sirve, pero se deja como Timestamp para no depender
+      // de que el SDK lo convierta en el envío.
+      expect(result.updatedAt).toBeInstanceOf(Timestamp);
+      expect(result.updatedAt.toMillis()).toBe(millis);
+    });
+
+    it('sigue omitiendo las claves undefined que rechaza setDoc', () => {
+      const result = toFirestore({
+        displayName: 'Ana López',
+        phone: undefined,
+        baselineId: undefined,
+        createdAt: 1_700_000_000_000,
+      }) as any;
+
+      expect('phone' in result).toBe(false);
+      expect('baselineId' in result).toBe(false);
+      expect(result.displayName).toBe('Ana López');
+      expect(result.createdAt).toBeInstanceOf(Timestamp);
+    });
+
+    it('recursa en los objetos anidados', () => {
+      const result = toFirestore({
+        objective: { goal: 'perdida-peso', patientExpectation: undefined, targetWeightKg: 60 },
+      }) as any;
+
+      expect(result.objective.targetWeightKg).toBe(60);
+      expect('patientExpectation' in result.objective).toBe(false);
     });
   });
 

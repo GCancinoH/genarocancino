@@ -461,6 +461,58 @@ service cloud.firestore {
     }
 
     // =============================================================
+    // meal_plans — menús guardados, uno por documento
+    // =============================================================
+    //
+    // Colección top-level con `uID`, igual que `body_composition`, y NO una
+    // subcolección dentro de `players`: el perfil ya concentra anamnesis,
+    // actividad, el registro de 24 h y los planes, y meterle una lista entera
+    // de menús lo acercaría al límite de 1 MB del documento. Además así las
+    // reglas del plan quedan aparte del `hasOnly` de `players`, que es enorme.
+    //
+    // Un menú por documento —y no todos dentro de uno— hace que guardar uno
+    // no reescriba los demás ni acumule tamaño, y no hay techo de cuántos
+    // menús puede acumular un paciente seguido durante años. El borrado del
+    // expediente los recoge con `deleteByField('meal_plans', 'uID', uid)`.
+    match /meal_plans/{planId} {
+
+      function validMealPlan() {
+        let d = request.resource.data;
+        // `days` solo se valida como lista acotada, sin recorrer sus comidas
+        // ni sus alimentos: quien puede escribir es únicamente el nutriólogo,
+        // y pescar la estructura interna de ~175 elementos de un menú de
+        // 7 días multiplicaría el coste de la regla sin ganar seguridad.
+        return hasAll(d, ['uID', 'nombre', 'days', 'createdBy', 'createdAt']) &&
+               hasOnly(d, ['uID', 'nombre', 'descripcion', 'days', 'createdBy', 'createdAt']) &&
+               d.uID is string &&
+               d.uID.size() > 0 &&
+               d.uID.size() <= 128 &&
+               // El menú debe apuntar a un paciente existente.
+               exists(/databases/$(database)/documents/players/$(d.uID)) &&
+               d.nombre is string &&
+               d.nombre.size() >= 1 &&
+               d.nombre.size() <= 80 &&
+               isBoundedString(d, 'descripcion', 0, 300) &&
+               d.days is list &&
+               d.days.size() <= 60 &&
+               d.createdBy == request.auth.uid &&
+               d.createdAt is timestamp;
+      }
+
+      function immutableMealPlanFields() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return !changed.hasAny(['uID', 'createdBy', 'createdAt']);
+      }
+
+      // El nutriólogo administra; el paciente solo lee el suyo.
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.uID == request.auth.uid);
+      allow create: if isAdmin() && validMealPlan();
+      allow update: if isAdmin() && validMealPlan() && immutableMealPlanFields();
+      allow delete: if isAdmin();
+    }
+
+    // =============================================================
     // player_rewards — XP / nivel / monedas del jugador
     // =============================================================
     match /player_rewards/{uid} {
